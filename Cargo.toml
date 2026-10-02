@@ -1,0 +1,62 @@
+[workspace]
+members = [
+    "crates/backend",
+    "apps/desktop/src-tauri",
+]
+default-members = ["crates/backend"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+authors = ["LynxSearch Contributors"]
+license = "MIT OR Apache-2.0"
+readme = "PRD-LynxSearch.md"
+
+[workspace.dependencies]
+# Web & HTTP Framework
+axum = "0.8"
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors", "trace", "timeout", "compression-gzip"] }
+
+# Async Runtime & Concurrency
+tokio = { version = "1.43", features = ["full"] }
+tokio-util = "0.7"
+async-trait = "0.1"
+futures = "0.3"
+futures-util = "0.3"
+parking_lot = "0.12"
+dashmap = "6.1"
+
+# Database & Search Engine
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "uuid", "chrono", "json"] }
+elasticsearch = { version = "=8.19.0-alpha.1", default-features = false, features = ["rustls-tls"] }
+
+# Serialization & Validation
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["raw_value"] }
+serde_yaml = "0.9"
+validator = { version = "0.19", features = ["derive"] }
+
+# Error Handling & Observability
+thiserror = "2.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tracing-appender = "0.2"
+dotenvy = "0.15"
+dirs = "6.0"
+
+# File Traversal, Encoding & Parsing
+ignore = "0.4"
+infer = "0.16"
+encoding_rs = "0.8"
+pulldown-cmark = "0.12"
+
+# Security, Hashing & Identity
+sha2 = "0.10"
+hex = "0.4"
+uuid = { version = "1.10", features = ["v4", "v5", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+# Testing & Fixtures
+tempfile = "3.17"
