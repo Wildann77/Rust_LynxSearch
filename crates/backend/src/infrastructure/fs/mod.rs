@@ -1,0 +1,1 @@
+// Placeholder adapter local filesystem
