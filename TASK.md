@@ -286,7 +286,7 @@
   - [x] `docker --version` (`Docker 29.8.1`)
   - [x] `docker compose version` (`Docker Compose v5.5.1`)
 - [x] Pastikan Rust menggunakan Edition 2024 (didukung penuh rustc 1.98.1).
-- [ ] Pastikan toolchain dapat build Tauri native di Linux (perlu dijalankan oleh user: `sudo apt install -y libwebkit2gtk-4.1-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev`).
+- [x] Pastikan toolchain dapat build Tauri native di Linux (terinstal: `libwebkit2gtk-4.1-dev`, `libsoup-3.0-dev`, `libjavascriptcoregtk-4.1-dev`, `libayatana-appindicator3-dev`, `librsvg2-dev`).
 - [x] Install `cargo-nextest` (terinstal: `cargo-nextest 0.9.146`).
 - [x] Pastikan Git tersedia (`git 2.43.0`).
 
@@ -339,156 +339,156 @@
 
 ## 2.5 Pasang dependency backend
 
-- [ ] Axum 0.8.
-- [ ] Tokio 1.x dengan fitur yang diperlukan.
-- [ ] tower 0.5.
-- [ ] tower-http 0.6 dengan feature yang diperlukan (`cors`, `trace`, `timeout`, dll. sesuai kebutuhan nyata).
-- [ ] SQLx 0.8.x dengan PostgreSQL + tokio + chrono features.
-- [ ] Elasticsearch client major 8 yang telah difreeze di Fase 0.
-- [ ] serde + serde_json.
-- [ ] validator.
-- [ ] thiserror.
-- [ ] chrono.
-- [ ] uuid dengan `v4`, `v5`, `serde`.
-- [ ] sha2.
-- [ ] hex.
-- [ ] ignore.
-- [ ] infer.
-- [ ] encoding_rs.
-- [ ] pulldown-cmark.
-- [ ] serde_yaml.
-- [ ] dotenvy.
-- [ ] tracing.
-- [ ] tracing-subscriber.
-- [ ] tracing-appender.
-- [ ] tokio-util untuk `CancellationToken`.
-- [ ] async-trait.
-- [ ] futures/futures-util.
-- [ ] parking_lot.
-- [ ] dashmap.
-- [ ] Tambahkan dependency valid lain hanya jika dibutuhkan oleh implementasi yang telah disepakati.
+- [x] Axum 0.8.
+- [x] Tokio 1.x dengan fitur yang diperlukan.
+- [x] tower 0.5.
+- [x] tower-http 0.6 dengan feature yang diperlukan (`cors`, `trace`, `timeout`, dll. sesuai kebutuhan nyata).
+- [x] SQLx 0.8.x dengan PostgreSQL + tokio + chrono features.
+- [x] Elasticsearch client major 8 yang telah difreeze di Fase 0.
+- [x] serde + serde_json.
+- [x] validator.
+- [x] thiserror.
+- [x] chrono.
+- [x] uuid dengan `v4`, `v5`, `serde`.
+- [x] sha2.
+- [x] hex.
+- [x] ignore.
+- [x] infer.
+- [x] encoding_rs.
+- [x] pulldown-cmark.
+- [x] serde_yaml.
+- [x] dotenvy.
+- [x] tracing.
+- [x] tracing-subscriber.
+- [x] tracing-appender.
+- [x] tokio-util untuk `CancellationToken`.
+- [x] async-trait.
+- [x] futures/futures-util.
+- [x] parking_lot.
+- [x] dashmap.
+- [x] Tambahkan dependency valid lain hanya jika dibutuhkan oleh implementasi yang telah disepakati.
 
 ## 2.6 Pasang dependency frontend
 
-- [ ] React 19.3 + React DOM.
-- [ ] TypeScript 5.8+.
-- [ ] Vite 8.1.
-- [ ] `@vitejs/plugin-react`.
-- [ ] Tailwind CSS 4.3.
-- [ ] shadcn/ui + Radix primitives yang dibutuhkan.
-- [ ] `zod`.
-- [ ] `clsx`.
-- [ ] `tailwind-merge`.
-- [ ] `class-variance-authority`.
-- [ ] `lucide-react`.
-- [ ] `sonner`.
-- [ ] TanStack Query v5.
-- [ ] `@tanstack/react-virtual`.
-- [ ] Zustand 5.
-- [ ] `react-markdown`.
-- [ ] GFM plugin yang diperlukan.
-- [ ] Shiki.
-- [ ] Tauri API.
-- [ ] Tauri dialog plugin.
-- [ ] Tauri shell plugin.
-- [ ] Tauri opener plugin.
-- [ ] Tauri window-state plugin.
-- [ ] Tauri single-instance plugin.
-- [ ] Tauri clipboard-manager plugin.
-- [ ] Testing dependencies:
-  - [ ] Vitest.
-  - [ ] React Testing Library.
-  - [ ] `@testing-library/user-event`.
-  - [ ] MSW v2.
-  - [ ] `happy-dom`.
-  - [ ] `vitest-axe`.
+- [x] React 19.3 + React DOM.
+- [x] TypeScript 5.8+.
+- [x] Vite 8.1.
+- [x] `@vitejs/plugin-react`.
+- [x] Tailwind CSS 4.3.
+- [x] shadcn/ui + Radix primitives yang dibutuhkan.
+- [x] `zod`.
+- [x] `clsx`.
+- [x] `tailwind-merge`.
+- [x] `class-variance-authority`.
+- [x] `lucide-react`.
+- [x] `sonner`.
+- [x] TanStack Query v5.
+- [x] `@tanstack/react-virtual`.
+- [x] Zustand 5.
+- [x] `react-markdown`.
+- [x] GFM plugin yang diperlukan.
+- [x] Shiki.
+- [x] Tauri API.
+- [x] Tauri dialog plugin.
+- [x] Tauri shell plugin.
+- [x] Tauri opener plugin.
+- [x] Tauri window-state plugin.
+- [x] Tauri single-instance plugin.
+- [x] Tauri clipboard-manager plugin.
+- [x] Testing dependencies:
+  - [x] Vitest.
+  - [x] React Testing Library.
+  - [x] `@testing-library/user-event`.
+  - [x] MSW v2.
+  - [x] `happy-dom`.
+  - [x] `vitest-axe`.
 
 ## 2.7 Docker Compose
 
-- [ ] Buat `docker/docker-compose.yml`.
-- [ ] PostgreSQL:
-  - [ ] `postgres:18.6-alpine`
-  - [ ] localhost bind `127.0.0.1:5432`
-  - [ ] persistent volume `lynx_pgdata`
-  - [ ] healthcheck `pg_isready`
-- [ ] Elasticsearch:
-  - [ ] `elasticsearch:8.19.22`
-  - [ ] localhost bind `127.0.0.1:9200`
-  - [ ] persistent volume `lynx_esdata`
-  - [ ] `discovery.type=single-node`
-  - [ ] local-only `xpack.security.enabled=false`
-  - [ ] `ES_JAVA_OPTS=-Xms512m -Xmx512m`
-  - [ ] healthcheck cluster health
-- [ ] Pastikan tidak ada service backend di Compose.
-- [ ] Pastikan tidak ada service Tauri di Compose.
+- [x] Buat `docker/docker-compose.yml`.
+- [x] PostgreSQL:
+  - [x] `postgres:18.6-alpine`
+  - [x] localhost bind `127.0.0.1:5432`
+  - [x] persistent volume `lynx_pgdata`
+  - [x] healthcheck `pg_isready`
+- [x] Elasticsearch:
+  - [x] `elasticsearch:8.19.22`
+  - [x] localhost bind `127.0.0.1:9200`
+  - [x] persistent volume `lynx_esdata`
+  - [x] `discovery.type=single-node`
+  - [x] local-only `xpack.security.enabled=false`
+  - [x] `ES_JAVA_OPTS=-Xms512m -Xmx512m`
+  - [x] healthcheck cluster health
+- [x] Pastikan tidak ada service backend di Compose.
+- [x] Pastikan tidak ada service Tauri di Compose.
 
 ## 2.8 Environment
 
-- [ ] Buat `.env.example` dengan:
-  - [ ] `DATABASE_URL`
-  - [ ] `ELASTICSEARCH_URL`
-  - [ ] `BACKEND_BIND_ADDR`
-  - [ ] `RUST_LOG`
-- [ ] Tambahkan variable front-end API base URL bila diperlukan.
-- [ ] Default API target tetap localhost.
-- [ ] Pastikan `.env` di-ignore Git.
-- [ ] Pastikan config loader membaca `.env`.
+- [x] Buat `.env.example` dengan:
+  - [x] `DATABASE_URL`
+  - [x] `ELASTICSEARCH_URL`
+  - [x] `BACKEND_BIND_ADDR`
+  - [x] `RUST_LOG`
+- [x] Tambahkan variable front-end API base URL bila diperlukan.
+- [x] Default API target tetap localhost.
+- [x] Pastikan `.env` di-ignore Git.
+- [x] Pastikan config loader membaca `.env`.
 
 ## 2.9 Tooling dan quality scripts
 
-- [ ] Konfigurasi `rustfmt`.
-- [ ] Konfigurasi Clippy.
-- [ ] Tambahkan `nextest` command.
-- [ ] Tambahkan frontend lint command.
-- [ ] Tambahkan frontend typecheck command.
-- [ ] Tambahkan frontend coverage command.
-- [ ] Tambahkan build command.
-- [ ] Tambahkan visualizer build output.
-- [ ] Buat `scripts/bundle-budget-checker.py`.
-- [ ] Script harus memeriksa:
-  - [ ] JS gzip < 450 KB.
-  - [ ] CSS gzip < 50 KB.
+- [x] Konfigurasi `rustfmt`.
+- [x] Konfigurasi Clippy.
+- [x] Tambahkan `nextest` command.
+- [x] Tambahkan frontend lint command.
+- [x] Tambahkan frontend typecheck command.
+- [x] Tambahkan frontend coverage command.
+- [x] Tambahkan build command.
+- [x] Tambahkan visualizer build output.
+- [x] Buat `scripts/bundle-budget-checker.py`.
+- [x] Script harus memeriksa:
+  - [x] JS gzip < 450 KB.
+  - [x] CSS gzip < 50 KB.
 
 ## 2.10 Tauri configuration baseline
 
-- [ ] `productName = LynxSearch`.
-- [ ] Set identifier unik sesuai project.
-- [ ] Window `1280x800`.
-- [ ] Min `1024x640`.
-- [ ] Center window.
-- [ ] Drag region native.
-- [ ] CSP hanya membuka backend localhost yang diperlukan.
-- [ ] Tidak mengizinkan network eksternal yang tidak diperlukan.
-- [ ] Register plugin config.
-- [ ] Tambahkan capability permissions minimum untuk:
-  - [ ] core
-  - [ ] dialog
-  - [ ] shell
-  - [ ] opener
-  - [ ] window-state
-  - [ ] single-instance
-  - [ ] clipboard manager
+- [x] `productName = LynxSearch`.
+- [x] Set identifier unik sesuai project.
+- [x] Window `1280x800`.
+- [x] Min `1024x640`.
+- [x] Center window.
+- [x] Drag region native.
+- [x] CSP hanya membuka backend localhost yang diperlukan.
+- [x] Tidak mengizinkan network eksternal yang tidak diperlukan.
+- [x] Register plugin config.
+- [x] Tambahkan capability permissions minimum untuk:
+  - [x] core
+  - [x] dialog
+  - [x] shell
+  - [x] opener
+  - [x] window-state
+  - [x] single-instance
+  - [x] clipboard manager
 
 ## 2.11 Baseline build check
 
-- [ ] `cargo fmt --check`
-- [ ] `cargo clippy --all-targets --all-features -- -D warnings`
-- [ ] `cargo check --workspace`
-- [ ] `npm run typecheck`
-- [ ] `npm run build`
-- [ ] `docker compose -f docker/docker-compose.yml config`
-- [ ] `docker compose -f docker/docker-compose.yml up -d`
-- [ ] Pastikan PostgreSQL healthy.
-- [ ] Pastikan Elasticsearch healthy.
-- [ ] `docker compose ... down` berhasil tanpa error.
+- [x] `cargo fmt --check`
+- [x] `cargo clippy --all-targets --all-features -- -D warnings`
+- [x] `cargo check --workspace`
+- [x] `npm run typecheck`
+- [x] `npm run build`
+- [x] `docker compose -f docker/docker-compose.yml config`
+- [x] `docker compose -f docker/docker-compose.yml up -d`
+- [x] Pastikan PostgreSQL healthy.
+- [x] Pastikan Elasticsearch healthy.
+- [x] `docker compose ... down` berhasil tanpa error.
 
 ### Phase 1 Gate
 
-- [ ] Workspace dapat dibuild.
-- [ ] Docker data stores dapat hidup sehat.
-- [ ] Tidak ada secret hardcoded.
-- [ ] Backend dan desktop dapat dijalankan terpisah.
-- [ ] Quality commands tersedia dan baseline lulus.
+- [x] Workspace dapat dibuild.
+- [x] Docker data stores dapat hidup sehat.
+- [x] Tidak ada secret hardcoded.
+- [x] Backend dan desktop dapat dijalankan terpisah.
+- [x] Quality commands tersedia dan baseline lulus.
 
 ---
 
