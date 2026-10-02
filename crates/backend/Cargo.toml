@@ -1,0 +1,54 @@
+[package]
+name = "backend"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+# Web & HTTP Framework
+axum = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+
+# Async Runtime & Concurrency
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+async-trait = { workspace = true }
+futures = { workspace = true }
+futures-util = { workspace = true }
+parking_lot = { workspace = true }
+dashmap = { workspace = true }
+
+# Database & Search Engine
+sqlx = { workspace = true }
+elasticsearch = { workspace = true }
+
+# Serialization & Validation
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+validator = { workspace = true }
+
+# Error Handling & Observability
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+tracing-appender = { workspace = true }
+dotenvy = { workspace = true }
+dirs = { workspace = true }
+
+# File Traversal, Encoding & Parsing
+ignore = { workspace = true }
+infer = { workspace = true }
+encoding_rs = { workspace = true }
+pulldown-cmark = { workspace = true }
+
+# Security, Hashing & Identity
+sha2 = { workspace = true }
+hex = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
