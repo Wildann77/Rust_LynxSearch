@@ -1,0 +1,6 @@
+# Clippy configuration for LynxSearch
+avoid-breaking-exported-api = false
+msrv = "1.98.1"
+cognitive-complexity-threshold = 25
+too-many-arguments-threshold = 8
+too-many-lines-threshold = 400
