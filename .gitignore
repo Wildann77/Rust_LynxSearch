@@ -1,0 +1,29 @@
+# Rust build artifacts
+target/
+**/*.rs.bk
+
+# Node & Frontend
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+
+# Tauri build artifacts
+src-tauri/target/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+*.env
+
+# Logs & coverage
+*.log
+coverage/
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
