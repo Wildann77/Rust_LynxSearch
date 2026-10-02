@@ -1,0 +1,1 @@
+// Placeholder application queries (CQS)
