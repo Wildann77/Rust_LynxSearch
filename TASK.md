@@ -496,157 +496,158 @@
 
 ## 3.1 `lib.rs` dan `main.rs`
 
-- [ ] Pindahkan seluruh application/domain/infrastructure API export ke `lib.rs`.
-- [ ] Pastikan `main.rs` hanya:
-  - [ ] load dotenv/config;
-  - [ ] initialize tracing;
-  - [ ] create runtime resources;
-  - [ ] bind listener;
-  - [ ] start Axum server;
-  - [ ] wire graceful shutdown.
-- [ ] Pastikan integration test dapat mengakses router/library tanpa spawn binary.
+- [x] Pindahkan seluruh application/domain/infrastructure API export ke `lib.rs`.
+- [x] Pastikan `main.rs` hanya:
+  - [x] load dotenv/config;
+  - [x] initialize tracing;
+  - [x] create runtime resources;
+  - [x] bind listener;
+  - [x] start Axum server;
+  - [x] wire graceful shutdown.
+- [x] Pastikan integration test dapat mengakses router/library tanpa spawn binary.
 
 ## 3.2 Config layer
 
-- [ ] Implement config struct untuk:
-  - [ ] database URL
-  - [ ] Elasticsearch URL
-  - [ ] bind address
-  - [ ] log level
-  - [ ] max file size default
-  - [ ] ignore patterns default
-  - [ ] BM25 default weights
-  - [ ] file-read concurrency limit
-- [ ] Validasi konfigurasi saat startup.
-- [ ] Beri error startup yang jelas jika variable wajib hilang/invalid.
-- [ ] Jangan menyimpan secret di source.
+- [x] Implement config struct untuk:
+  - [x] database URL
+  - [x] Elasticsearch URL
+  - [x] bind address
+  - [x] log level
+  - [x] max file size default
+  - [x] ignore patterns default
+  - [x] BM25 default weights
+  - [x] file-read concurrency limit
+- [x] Validasi konfigurasi saat startup.
+- [x] Beri error startup yang jelas jika variable wajib hilang/invalid.
+- [x] Jangan menyimpan secret di source.
 
 ## 3.3 AppState
 
-- [ ] Buat shared state yang memuat:
-  - [ ] DB pool.
-  - [ ] Elasticsearch client.
-  - [ ] repositories.
-  - [ ] JobTracker.
-  - [ ] worker queue sender.
-  - [ ] file I/O semaphore.
-  - [ ] runtime config/settings.
-- [ ] Pastikan ownership/`Arc` semantics jelas.
-- [ ] Hindari global mutable singleton.
+- [x] Buat shared state yang memuat:
+  - [x] DB pool.
+  - [x] Elasticsearch client.
+  - [x] repositories.
+  - [x] JobTracker.
+  - [x] worker queue sender.
+  - [x] file I/O semaphore.
+  - [x] runtime config/settings.
+- [x] Pastikan ownership/`Arc` semantics jelas.
+- [x] Hindari global mutable singleton.
 
 ## 3.4 Error taxonomy
 
-- [ ] Implement `AppError` typed.
-- [ ] Minimal domain categories:
-  - [ ] folder not found
-  - [ ] document not found
-  - [ ] job conflict
-  - [ ] validation failed
-  - [ ] path traversal
-  - [ ] invalid query
-  - [ ] database error
-  - [ ] search engine error
-  - [ ] I/O error
-  - [ ] internal error
-- [ ] Map ke API error code yang telah dibekukan.
-- [ ] Jangan bocorkan stack trace/internal detail ke UI.
-- [ ] Simpan detail teknis pada tracing log.
+- [x] Implement `AppError` typed.
+- [x] Minimal domain categories:
+  - [x] folder not found
+  - [x] document not found
+  - [x] job conflict
+  - [x] validation failed
+  - [x] path traversal
+  - [x] invalid query
+  - [x] database error
+  - [x] search engine error
+  - [x] I/O error
+  - [x] internal error
+- [x] Map ke API error code yang telah dibekukan.
+- [x] Jangan bocorkan stack trace/internal detail ke UI.
+- [x] Simpan detail teknis pada tracing log.
+
 
 ## 3.5 Validation extractor
 
-- [ ] Implement custom `ValidatedJson`.
-- [ ] Implement custom `ValidatedQuery`.
-- [ ] Jalankan `validator::Validate` sebelum use case.
-- [ ] Validasi search:
-  - [ ] page `1..=1000`
-  - [ ] size `1..=100`
-  - [ ] q max 500 setelah normalization.
-- [ ] Validasi UUID path params.
-- [ ] Validasi folder root path.
-- [ ] Pastikan invalid DTO menghasilkan `422` sesuai kontrak.
+- [x] Implement custom `ValidatedJson`.
+- [x] Implement custom `ValidatedQuery`.
+- [x] Jalankan `validator::Validate` sebelum use case.
+- [x] Validasi search:
+  - [x] page `1..=1000`
+  - [x] size `1..=100`
+  - [x] q max 500 setelah normalization.
+- [x] Validasi UUID path params.
+- [x] Validasi folder root path.
+- [x] Pastikan invalid DTO menghasilkan `422` sesuai kontrak.
 
 ## 3.6 Router skeleton
 
-- [ ] Buat `api/mod.rs`.
-- [ ] Buat `api/routes.rs`.
-- [ ] Daftarkan seluruh endpoint sebagai route skeleton.
-- [ ] Pisahkan handler:
-  - [ ] `health.rs`
-  - [ ] `search.rs`
-  - [ ] `suggest.rs`
-  - [ ] `folder.rs`
-  - [ ] `index.rs`
-  - [ ] `document.rs`
-  - [ ] `settings.rs`
+- [x] Buat `api/mod.rs`.
+- [x] Buat `api/routes.rs`.
+- [x] Daftarkan seluruh endpoint sebagai route skeleton.
+- [x] Pisahkan handler:
+  - [x] `health.rs`
+  - [x] `search.rs`
+  - [x] `suggest.rs`
+  - [x] `folder.rs`
+  - [x] `index.rs`
+  - [x] `document.rs`
+  - [x] `settings.rs`
 
 ## 3.7 Middleware
 
-- [ ] Tambahkan `TraceLayer`.
-- [ ] Tambahkan request correlation/request_id.
-- [ ] Tambahkan latency capture.
-- [ ] Tambahkan local CORS untuk desktop client.
-- [ ] Tambahkan timeout policy.
-- [ ] Tambahkan compression sesuai kebutuhan.
-- [ ] Pastikan error layer tidak mengubah structured error menjadi string generik.
+- [x] Tambahkan `TraceLayer`.
+- [x] Tambahkan request correlation/request_id.
+- [x] Tambahkan latency capture.
+- [x] Tambahkan local CORS untuk desktop client.
+- [x] Tambahkan timeout policy.
+- [x] Tambahkan compression sesuai kebutuhan.
+- [x] Pastikan error layer tidak mengubah structured error menjadi string generik.
 
 ## 3.8 Health endpoints
 
-- [ ] Implement `GET /api/health/live`.
-- [ ] Liveness hanya memverifikasi process/router hidup.
-- [ ] Implement `GET /api/health/ready`.
-- [ ] Readiness memeriksa PostgreSQL.
-- [ ] Readiness memeriksa Elasticsearch.
-- [ ] Return `503` jika dependency readiness gagal.
-- [ ] Implement `GET /api/health`.
-- [ ] Report:
-  - [ ] backend status
-  - [ ] database status + latency
-  - [ ] Elasticsearch status + latency
-- [ ] Pastikan frontend dapat membedakan offline vs dependency unavailable.
+- [x] Implement `GET /api/health/live`.
+- [x] Liveness hanya memverifikasi process/router hidup.
+- [x] Implement `GET /api/health/ready`.
+- [x] Readiness memeriksa PostgreSQL.
+- [x] Readiness memeriksa Elasticsearch.
+- [x] Return `503` jika dependency readiness gagal.
+- [x] Implement `GET /api/health`.
+- [x] Report:
+  - [x] backend status
+  - [x] database status + latency
+  - [x] Elasticsearch status + latency
+- [x] Pastikan frontend dapat membedakan offline vs dependency unavailable.
 
 ## 3.9 Startup crash recovery
 
-- [ ] Saat startup, query job berstatus `RUNNING`/`PENDING`.
-- [ ] Mark job tersebut `FAILED`.
-- [ ] Isi `completed_at`.
-- [ ] Isi `error_summary` recovery message.
-- [ ] Reset folder `SCANNING` -> `IDLE`.
-- [ ] Pastikan startup recovery idempoten.
+- [x] Saat startup, query job berstatus `RUNNING`/`PENDING`.
+- [x] Mark job tersebut `FAILED`.
+- [x] Isi `completed_at`.
+- [x] Isi `error_summary` recovery message.
+- [x] Reset folder `SCANNING` -> `IDLE`.
+- [x] Pastikan startup recovery idempoten.
 
 ## 3.10 Graceful shutdown
 
-- [ ] Hook `SIGINT`/Ctrl+C.
-- [ ] Hook `SIGTERM`.
-- [ ] Stop accepting request baru.
-- [ ] Trigger `CancellationToken`.
-- [ ] Worker berhenti mengambil file baru.
-- [ ] Selesaikan batch aktif.
-- [ ] Terapkan grace period maksimum 10 detik.
-- [ ] Mark unfinished jobs `CANCELLED`.
-- [ ] Close DB pool.
-- [ ] Close HTTP clients.
-- [ ] Exit clean.
+- [x] Hook `SIGINT`/Ctrl+C.
+- [x] Hook `SIGTERM`.
+- [x] Stop accepting request baru.
+- [x] Trigger `CancellationToken`.
+- [x] Worker berhenti mengambil file baru.
+- [x] Selesaikan batch aktif.
+- [x] Terapkan grace period maksimum 10 detik.
+- [x] Mark unfinished jobs `CANCELLED`.
+- [x] Close DB pool.
+- [x] Close HTTP clients.
+- [x] Exit clean.
 
 ## 3.11 Worker supervisor skeleton
 
-- [ ] Sediakan Supervisor Task.
-- [ ] Spawn worker loop melalui `tokio::spawn`.
-- [ ] Tangkap `JoinError`.
-- [ ] Jika panic:
-  - [ ] log critical error;
-  - [ ] mark active job `FAILED`;
-  - [ ] release folder lock;
-  - [ ] restart worker setelah backoff 1 detik.
-- [ ] Pastikan shutdown token menghentikan supervisor juga.
+- [x] Sediakan Supervisor Task.
+- [x] Spawn worker loop melalui `tokio::spawn`.
+- [x] Tangkap `JoinError`.
+- [x] Jika panic:
+  - [x] log critical error;
+  - [x] mark active job `FAILED`;
+  - [x] release folder lock;
+  - [x] restart worker setelah backoff 1 detik.
+- [x] Pastikan shutdown token menghentikan supervisor juga.
 
 ### Phase 2 Gate
 
-- [ ] Liveness/readiness/health bekerja.
-- [ ] Structured error response bekerja.
-- [ ] Invalid DTO menghasilkan status yang benar.
-- [ ] Backend hanya bind localhost.
-- [ ] Graceful shutdown dan crash recovery teruji minimal lewat unit/integration test skeleton.
-- [ ] Semua route sudah terdaftar, walaupun beberapa masih `TODO` implementasi use case.
+- [x] Liveness/readiness/health bekerja.
+- [x] Structured error response bekerja.
+- [x] Invalid DTO menghasilkan status yang benar.
+- [x] Backend hanya bind localhost.
+- [x] Graceful shutdown dan crash recovery teruji minimal lewat unit/integration test skeleton.
+- [x] Semua route sudah terdaftar, walaupun beberapa masih `TODO` implementasi use case.
 
 ---
 

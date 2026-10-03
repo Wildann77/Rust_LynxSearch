@@ -2,30 +2,40 @@ import { useState, useEffect } from 'react';
 import { Search, Server, ShieldCheck, Terminal, Cpu, Database } from 'lucide-react';
 import { BACKEND_URL } from './api/config';
 
-interface BackendHealth {
-  status: string;
-  postgres?: boolean;
-  elasticsearch?: boolean;
+export interface ComponentHealth {
+  status: 'up' | 'down';
+  latency_ms?: number | null;
+  error?: string | null;
 }
 
+export interface HealthResponse {
+  status: 'ok' | 'degraded';
+  version: string;
+  timestamp: string;
+  database: ComponentHealth;
+  elasticsearch: ComponentHealth;
+}
+
+export type HealthState = 'connecting' | 'ok' | 'dependency_unavailable' | 'offline';
+
 export default function App() {
-  const [backendHealth, setBackendHealth] = useState<BackendHealth | null>(null);
-  const [isConnecting, setIsConnecting] = useState<boolean>(true);
+  const [healthState, setHealthState] = useState<HealthState>('connecting');
+  const [healthData, setHealthData] = useState<HealthResponse | null>(null);
 
   useEffect(() => {
     async function checkHealth() {
       try {
         const response = await fetch(`${BACKEND_URL}/api/health`);
-        if (response.ok) {
-          const data = (await response.json()) as BackendHealth;
-          setBackendHealth(data);
+        const data = (await response.json()) as HealthResponse;
+        setHealthData(data);
+        if (response.ok && data.status === 'ok') {
+          setHealthState('ok');
         } else {
-          setBackendHealth({ status: 'offline' });
+          setHealthState('dependency_unavailable');
         }
       } catch {
-        setBackendHealth({ status: 'offline' });
-      } finally {
-        setIsConnecting(false);
+        setHealthState('offline');
+        setHealthData(null);
       }
     }
 
@@ -53,19 +63,20 @@ export default function App() {
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-mono">
             <span
               className={`h-2 w-2 rounded-full ${
-                isConnecting
+                healthState === 'connecting'
                   ? 'bg-amber-400 animate-pulse'
-                  : backendHealth?.status === 'ok'
+                  : healthState === 'ok'
                     ? 'bg-primary'
-                    : 'bg-destructive'
+                    : healthState === 'dependency_unavailable'
+                      ? 'bg-amber-500'
+                      : 'bg-destructive'
               }`}
             />
             <span>
-              {isConnecting
-                ? 'Connecting to backend...'
-                : backendHealth?.status === 'ok'
-                  ? `Backend Connected (${BACKEND_URL.replace(/^https?:\/\//, '')})`
-                  : `Backend Offline (${BACKEND_URL.replace(/^https?:\/\//, '')})`}
+              {healthState === 'connecting' && 'Connecting to backend...'}
+              {healthState === 'ok' && `Backend Connected (${BACKEND_URL.replace(/^https?:\/\//, '')})`}
+              {healthState === 'dependency_unavailable' && 'Backend Connected (Dependencies Unavailable)'}
+              {healthState === 'offline' && `Backend Offline (${BACKEND_URL.replace(/^https?:\/\//, '')})`}
             </span>
           </div>
         </div>
@@ -111,7 +122,16 @@ export default function App() {
                 <span>Storage Layer</span>
               </div>
               <p className="text-xs font-semibold">Postgres + ES 8</p>
-              <p className="text-[11px] text-muted-foreground">Metadata & BM25</p>
+              <p className="text-[11px] text-muted-foreground">
+                {healthState === 'ok' && 'Postgres & ES Ready'}
+                {healthState === 'dependency_unavailable' && (
+                  <span className="text-amber-500 font-mono">
+                    DB: {healthData?.database?.status.toUpperCase() ?? 'UNKNOWN'} | ES: {healthData?.elasticsearch?.status.toUpperCase() ?? 'UNKNOWN'}
+                  </span>
+                )}
+                {healthState === 'offline' && 'Backend Offline'}
+                {healthState === 'connecting' && 'Checking Storage...'}
+              </p>
             </div>
           </div>
 
