@@ -16,8 +16,8 @@ readme = "PRD-LynxSearch.md"
 [workspace.dependencies]
 # Web & HTTP Framework
 axum = "0.8"
-tower = "0.5"
-tower-http = { version = "0.6", features = ["cors", "trace", "timeout", "compression-gzip"] }
+tower = { version = "0.5", features = ["util"] }
+tower-http = { version = "0.6", features = ["cors", "trace", "timeout", "compression-gzip", "request-id"] }
 
 # Async Runtime & Concurrency
 tokio = { version = "1.43", features = ["full"] }
