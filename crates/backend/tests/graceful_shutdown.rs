@@ -1,4 +1,4 @@
-use backend::domain::models::{Folder, FolderStatus, IndexingJob, JobStatus};
+use backend::domain::models::{Folder, FolderId, FolderStatus, IndexingJob, JobId, JobStatus};
 use backend::{
     AppState, SHUTDOWN_CANCEL_REASON, create_router_with_state, shutdown_in_flight_jobs,
 };
@@ -7,12 +7,11 @@ use std::path::PathBuf;
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio_util::sync::CancellationToken;
-use uuid::Uuid;
 
 #[tokio::test]
 async fn test_graceful_shutdown_cancels_in_flight_jobs_and_resets_folders() {
     let (state, mut rx) = AppState::test_state();
-    let folder_id = Uuid::new_v4();
+    let folder_id = FolderId::new();
 
     let mut folder = Folder::new(PathBuf::from("/test/graceful_shutdown"));
     folder.id = folder_id;
@@ -25,8 +24,8 @@ async fn test_graceful_shutdown_cancels_in_flight_jobs_and_resets_folders() {
         .unwrap();
 
     let running_job = IndexingJob {
-        id: Uuid::new_v4(),
-        folder_id,
+        id: JobId::new(),
+        folder_id: Some(folder_id),
         status: JobStatus::Running,
         files_total: 100,
         files_processed: 30,
@@ -45,8 +44,8 @@ async fn test_graceful_shutdown_cancels_in_flight_jobs_and_resets_folders() {
         .unwrap();
 
     let pending_job = IndexingJob {
-        id: Uuid::new_v4(),
-        folder_id,
+        id: JobId::new(),
+        folder_id: Some(folder_id),
         status: JobStatus::Pending,
         files_total: 0,
         files_processed: 0,
@@ -65,8 +64,8 @@ async fn test_graceful_shutdown_cancels_in_flight_jobs_and_resets_folders() {
         .unwrap();
 
     let completed_job = IndexingJob {
-        id: Uuid::new_v4(),
-        folder_id,
+        id: JobId::new(),
+        folder_id: Some(folder_id),
         status: JobStatus::Completed,
         files_total: 50,
         files_processed: 50,
@@ -85,8 +84,8 @@ async fn test_graceful_shutdown_cancels_in_flight_jobs_and_resets_folders() {
         .unwrap();
 
     let failed_job = IndexingJob {
-        id: Uuid::new_v4(),
-        folder_id,
+        id: JobId::new(),
+        folder_id: Some(folder_id),
         status: JobStatus::Failed,
         files_total: 10,
         files_processed: 2,

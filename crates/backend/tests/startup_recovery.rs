@@ -1,20 +1,19 @@
 use backend::AppState;
 use backend::application::{STARTUP_CRASH_RECOVERY_ERROR_MSG, recover_on_startup};
-use backend::domain::models::{Folder, FolderStatus, IndexingJob, JobStatus};
+use backend::domain::models::{Folder, FolderId, FolderStatus, IndexingJob, JobId, JobStatus};
 use backend::state::Repositories;
 use chrono::Utc;
 use std::path::PathBuf;
-use uuid::Uuid;
 
 #[tokio::test]
 async fn test_startup_recovery_heals_running_and_pending_jobs() {
     let repos = Repositories::in_memory();
-    let folder_id = Uuid::new_v4();
+    let folder_id = FolderId::new();
 
     // 1. Setup jobs with different statuses
     let running_job = IndexingJob {
-        id: Uuid::new_v4(),
-        folder_id,
+        id: JobId::new(),
+        folder_id: Some(folder_id),
         status: JobStatus::Running,
         files_total: 100,
         files_processed: 45,
@@ -28,8 +27,8 @@ async fn test_startup_recovery_heals_running_and_pending_jobs() {
     repos.job.create_job(&running_job).await.unwrap();
 
     let pending_job = IndexingJob {
-        id: Uuid::new_v4(),
-        folder_id,
+        id: JobId::new(),
+        folder_id: Some(folder_id),
         status: JobStatus::Pending,
         files_total: 0,
         files_processed: 0,
@@ -43,8 +42,8 @@ async fn test_startup_recovery_heals_running_and_pending_jobs() {
     repos.job.create_job(&pending_job).await.unwrap();
 
     let completed_job = IndexingJob {
-        id: Uuid::new_v4(),
-        folder_id,
+        id: JobId::new(),
+        folder_id: Some(folder_id),
         status: JobStatus::Completed,
         files_total: 50,
         files_processed: 50,
@@ -58,8 +57,8 @@ async fn test_startup_recovery_heals_running_and_pending_jobs() {
     repos.job.create_job(&completed_job).await.unwrap();
 
     let failed_job = IndexingJob {
-        id: Uuid::new_v4(),
-        folder_id,
+        id: JobId::new(),
+        folder_id: Some(folder_id),
         status: JobStatus::Failed,
         files_total: 20,
         files_processed: 5,
@@ -177,7 +176,7 @@ async fn test_startup_recovery_resets_scanning_folders() {
 #[tokio::test]
 async fn test_startup_recovery_is_idempotent() {
     let repos = Repositories::in_memory();
-    let folder_id = Uuid::new_v4();
+    let folder_id = FolderId::new();
 
     let mut folder = Folder::new(PathBuf::from("/path/scan_test"));
     folder.id = folder_id;
@@ -185,8 +184,8 @@ async fn test_startup_recovery_is_idempotent() {
     repos.folder.create_folder(&folder).await.unwrap();
 
     let job = IndexingJob {
-        id: Uuid::new_v4(),
-        folder_id,
+        id: JobId::new(),
+        folder_id: Some(folder_id),
         status: JobStatus::Running,
         files_total: 50,
         files_processed: 10,
@@ -244,8 +243,8 @@ async fn test_app_state_recover_on_startup_integration() {
         .unwrap();
 
     let job = IndexingJob {
-        id: Uuid::new_v4(),
-        folder_id: folder.id,
+        id: JobId::new(),
+        folder_id: Some(folder.id),
         status: JobStatus::Pending,
         files_total: 200,
         files_processed: 0,

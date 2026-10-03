@@ -3,7 +3,7 @@ use backend::application::orchestrator::supervisor::{
     spawn_worker_supervisor,
 };
 use backend::application::orchestrator::{JobTracker, WorkerCommand};
-use backend::domain::models::{Folder, FolderStatus, IndexingJob, JobStatus};
+use backend::domain::models::{Folder, FolderId, FolderStatus, IndexingJob, JobId, JobStatus};
 use backend::state::{AppState, Repositories};
 use chrono::Utc;
 use std::path::PathBuf;
@@ -11,12 +11,11 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
-use uuid::Uuid;
 
 #[tokio::test]
 async fn test_recover_panicked_worker_marks_jobs_failed_and_releases_folders() {
     let (state, _rx) = AppState::test_state();
-    let folder_id = Uuid::new_v4();
+    let folder_id = FolderId::new();
 
     let mut folder = Folder::new(PathBuf::from("/test/supervisor/folder"));
     folder.id = folder_id;
@@ -28,7 +27,7 @@ async fn test_recover_panicked_worker_marks_jobs_failed_and_releases_folders() {
         .await
         .unwrap();
 
-    let job_id = Uuid::new_v4();
+    let job_id = JobId::new();
     let job_token = CancellationToken::new();
     state
         .job_tracker
@@ -36,7 +35,7 @@ async fn test_recover_panicked_worker_marks_jobs_failed_and_releases_folders() {
 
     let running_job = IndexingJob {
         id: job_id,
-        folder_id,
+        folder_id: Some(folder_id),
         status: JobStatus::Running,
         files_total: 50,
         files_processed: 10,
@@ -189,8 +188,8 @@ async fn test_spawn_worker_supervisor_lifecycle_and_channel_processing() {
     );
 
     // Send a command to verify channel works
-    let job_id = Uuid::new_v4();
-    let folder_id = Uuid::new_v4();
+    let job_id = JobId::new();
+    let folder_id = FolderId::new();
     state
         .worker_sender
         .send(WorkerCommand::IndexFolder {

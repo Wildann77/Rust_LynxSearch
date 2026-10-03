@@ -655,12 +655,12 @@
 
 ## 4.1 Domain IDs dan models
 
-- [ ] Implement `FolderId`.
-- [ ] Implement `DocumentId`.
-- [ ] Implement `JobId`.
-- [ ] Implement deterministic UUIDv5 document identity dari `(folder_id, relative_path)`.
-- [ ] Implement random job/folder UUID v4 sesuai kebutuhan.
-- [ ] Implement value objects untuk status/type/language/filter.
+- [x] Implement `FolderId`.
+- [x] Implement `DocumentId`.
+- [x] Implement `JobId`.
+- [x] Implement deterministic UUIDv5 document identity dari `(folder_id, relative_path)`.
+- [x] Implement random job/folder UUID v4 sesuai kebutuhan.
+- [x] Implement value objects untuk status/type/language/filter.
 
 ## 4.2 PostgreSQL migration 0001 — folders
 

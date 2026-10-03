@@ -225,7 +225,6 @@ impl AppState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use uuid::Uuid;
 
     #[tokio::test]
     async fn test_app_state_creation_and_clone_semantics() {
@@ -239,8 +238,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_app_state_job_tracker_and_folder_lock() {
+        use crate::domain::models::FolderId;
+
         let (state, _rx) = AppState::test_state();
-        let folder_id = Uuid::new_v4();
+        let folder_id = FolderId::new();
 
         let lock1 = state.job_tracker.try_acquire_folder_lock(&folder_id);
         assert!(lock1.is_ok());
@@ -248,7 +249,7 @@ mod tests {
         let lock2 = state.job_tracker.try_acquire_folder_lock(&folder_id);
         assert!(lock2.is_err());
         match lock2.unwrap_err() {
-            AppError::JobConflict(id) => assert_eq!(id, folder_id),
+            AppError::JobConflict(id) => assert_eq!(id, *folder_id),
             other => panic!("Expected JobConflict error, got: {other:?}"),
         }
 
@@ -260,9 +261,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_app_state_worker_sender() {
+        use crate::domain::models::{FolderId, JobId};
+
         let (state, mut rx) = AppState::test_state();
-        let job_id = Uuid::new_v4();
-        let folder_id = Uuid::new_v4();
+        let job_id = JobId::new();
+        let folder_id = FolderId::new();
 
         let send_result = state
             .worker_sender
@@ -333,9 +336,11 @@ mod tests {
             .await
             .unwrap();
 
+        use crate::domain::models::JobId;
+
         let job = IndexingJob {
-            id: Uuid::new_v4(),
-            folder_id: folder.id,
+            id: JobId::new(),
+            folder_id: Some(folder.id),
             status: JobStatus::Running,
             files_total: 10,
             files_processed: 3,
@@ -383,7 +388,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_app_state_graceful_shutdown() {
-        use crate::domain::models::{Folder, FolderStatus, IndexingJob, JobStatus};
+        use crate::domain::models::{Folder, FolderStatus, IndexingJob, JobId, JobStatus};
         use std::path::PathBuf;
         use std::time::Duration;
 
@@ -399,8 +404,8 @@ mod tests {
             .unwrap();
 
         let job = IndexingJob {
-            id: Uuid::new_v4(),
-            folder_id: folder.id,
+            id: JobId::new(),
+            folder_id: Some(folder.id),
             status: JobStatus::Running,
             files_total: 10,
             files_processed: 2,
