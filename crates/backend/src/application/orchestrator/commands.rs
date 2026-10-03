@@ -1,17 +1,17 @@
+use crate::domain::models::{FolderId, JobId};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum WorkerCommand {
     IndexFolder {
-        job_id: Uuid,
-        folder_id: Uuid,
+        job_id: JobId,
+        folder_id: FolderId,
         rescan: bool,
     },
     CancelJob {
-        job_id: Uuid,
+        job_id: JobId,
     },
     RebuildIndex {
-        job_id: Uuid,
+        job_id: JobId,
     },
 }

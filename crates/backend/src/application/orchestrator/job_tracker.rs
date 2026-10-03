@@ -1,4 +1,4 @@
-use crate::domain::models::{JobProgressUpdate, JobStatus};
+use crate::domain::models::{FolderId, JobId, JobProgressUpdate, JobStatus};
 use crate::error::AppError;
 use chrono::{DateTime, Utc};
 use dashmap::DashMap;
@@ -6,12 +6,11 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::{Mutex, OwnedMutexGuard};
 use tokio_util::sync::CancellationToken;
-use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JobProgressState {
-    pub job_id: Uuid,
-    pub folder_id: Uuid,
+    pub job_id: JobId,
+    pub folder_id: Option<FolderId>,
     pub status: JobStatus,
     pub files_total: i32,
     pub files_processed: i32,
@@ -24,9 +23,9 @@ pub struct JobProgressState {
 }
 
 pub struct JobTracker {
-    folder_locks: DashMap<Uuid, Arc<Mutex<()>>>,
-    jobs: DashMap<Uuid, JobProgressState>,
-    cancellation_tokens: DashMap<Uuid, CancellationToken>,
+    folder_locks: DashMap<FolderId, Arc<Mutex<()>>>,
+    jobs: DashMap<JobId, JobProgressState>,
+    cancellation_tokens: DashMap<JobId, CancellationToken>,
     shutdown_token: CancellationToken,
 }
 
@@ -56,7 +55,7 @@ impl JobTracker {
 
     pub fn try_acquire_folder_lock(
         &self,
-        folder_id: &Uuid,
+        folder_id: &FolderId,
     ) -> Result<OwnedMutexGuard<()>, AppError> {
         let lock_arc = self
             .folder_locks
@@ -66,10 +65,10 @@ impl JobTracker {
 
         lock_arc
             .try_lock_owned()
-            .map_err(|_| AppError::JobConflict(*folder_id))
+            .map_err(|_| AppError::JobConflict(*folder_id.as_uuid()))
     }
 
-    pub async fn acquire_folder_lock(&self, folder_id: &Uuid) -> OwnedMutexGuard<()> {
+    pub async fn acquire_folder_lock(&self, folder_id: &FolderId) -> OwnedMutexGuard<()> {
         let lock_arc = self
             .folder_locks
             .entry(*folder_id)
@@ -79,7 +78,14 @@ impl JobTracker {
         lock_arc.lock_owned().await
     }
 
-    pub fn register_job(&self, job_id: Uuid, folder_id: Uuid, token: CancellationToken) {
+    pub fn register_job(
+        &self,
+        job_id: impl Into<JobId>,
+        folder_id: impl Into<Option<FolderId>>,
+        token: CancellationToken,
+    ) {
+        let job_id = job_id.into();
+        let folder_id = folder_id.into();
         let shutting_down = self.is_shutting_down();
         if shutting_down {
             token.cancel();
@@ -115,7 +121,7 @@ impl JobTracker {
         self.cancellation_tokens.insert(job_id, token);
     }
 
-    pub fn update_progress(&self, job_id: &Uuid, update: JobProgressUpdate) {
+    pub fn update_progress(&self, job_id: &JobId, update: JobProgressUpdate) {
         if let Some(mut entry) = self.jobs.get_mut(job_id) {
             if let Some(status) = update.status {
                 entry.status = status;
@@ -141,11 +147,11 @@ impl JobTracker {
         }
     }
 
-    pub fn get_progress(&self, job_id: &Uuid) -> Option<JobProgressState> {
+    pub fn get_progress(&self, job_id: &JobId) -> Option<JobProgressState> {
         self.jobs.get(job_id).map(|entry| entry.clone())
     }
 
-    pub fn cancel_job(&self, job_id: &Uuid) -> bool {
+    pub fn cancel_job(&self, job_id: &JobId) -> bool {
         if let Some(token) = self.cancellation_tokens.get(job_id) {
             token.cancel();
             if let Some(mut entry) = self.jobs.get_mut(job_id) {
@@ -211,8 +217,8 @@ mod tests {
         let shutdown_token = tracker.shutdown_token();
         assert!(!shutdown_token.is_cancelled());
 
-        let job_id = Uuid::new_v4();
-        let folder_id = Uuid::new_v4();
+        let job_id = JobId::new();
+        let folder_id = FolderId::new();
         let job_token = CancellationToken::new();
         tracker.register_job(job_id, folder_id, job_token.clone());
 
@@ -233,7 +239,7 @@ mod tests {
         assert!(cancelled_progress.completed_at.is_some());
 
         // Registering a job after shutdown immediately cancels it
-        let job_id_2 = Uuid::new_v4();
+        let job_id_2 = JobId::new();
         let token_2 = CancellationToken::new();
         tracker.register_job(job_id_2, folder_id, token_2.clone());
         assert!(token_2.is_cancelled());

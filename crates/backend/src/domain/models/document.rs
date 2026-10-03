@@ -1,16 +1,17 @@
+use super::id::{DocumentId, FolderId};
+use super::types::{DocumentType, Language};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IndexedDocument {
-    pub id: Uuid,
-    pub folder_id: Uuid,
+    pub id: DocumentId,
+    pub folder_id: FolderId,
     pub title: String,
     pub relative_path: String,
     pub content: String,
-    pub doc_type: String,
-    pub language: Option<String>,
+    pub doc_type: DocumentType,
+    pub language: Option<Language>,
     pub tags: Vec<String>,
     pub project: Option<String>,
     pub file_size: u64,

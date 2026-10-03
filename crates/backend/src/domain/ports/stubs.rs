@@ -4,19 +4,18 @@ use super::{
 };
 use crate::config::Bm25Weights;
 use crate::domain::models::{
-    AppSettings, BulkIndexReport, Folder, FolderStatus, IndexedDocument, IndexingJob,
-    JobProgressUpdate, JobStatus, RegistryEntry, SearchRawResponse,
+    AppSettings, BulkIndexReport, DocumentId, Folder, FolderId, FolderStatus, IndexedDocument,
+    IndexingJob, JobId, JobProgressUpdate, JobStatus, RegistryEntry, SearchRawResponse,
 };
 use crate::error::AppError;
 use async_trait::async_trait;
 use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
-use uuid::Uuid;
 
 #[derive(Default)]
 pub struct InMemoryFolderRepository {
-    folders: Arc<RwLock<HashMap<Uuid, Folder>>>,
+    folders: Arc<RwLock<HashMap<FolderId, Folder>>>,
 }
 
 #[async_trait]
@@ -26,7 +25,7 @@ impl FolderRepository for InMemoryFolderRepository {
         Ok(())
     }
 
-    async fn get_folder(&self, id: &Uuid) -> Result<Option<Folder>, AppError> {
+    async fn get_folder(&self, id: &FolderId) -> Result<Option<Folder>, AppError> {
         Ok(self.folders.read().get(id).cloned())
     }
 
@@ -34,19 +33,19 @@ impl FolderRepository for InMemoryFolderRepository {
         Ok(self.folders.read().values().cloned().collect())
     }
 
-    async fn delete_folder(&self, id: &Uuid) -> Result<(), AppError> {
+    async fn delete_folder(&self, id: &FolderId) -> Result<(), AppError> {
         self.folders.write().remove(id);
         Ok(())
     }
 
-    async fn update_last_scanned(&self, id: &Uuid) -> Result<(), AppError> {
+    async fn update_last_scanned(&self, id: &FolderId) -> Result<(), AppError> {
         if let Some(folder) = self.folders.write().get_mut(id) {
             folder.last_scanned_at = Some(chrono::Utc::now());
         }
         Ok(())
     }
 
-    async fn update_status(&self, id: &Uuid, status: FolderStatus) -> Result<(), AppError> {
+    async fn update_status(&self, id: &FolderId, status: FolderStatus) -> Result<(), AppError> {
         if let Some(folder) = self.folders.write().get_mut(id) {
             folder.status = status;
         }
@@ -68,16 +67,16 @@ impl FolderRepository for InMemoryFolderRepository {
 
 #[derive(Default)]
 pub struct InMemoryDocumentRegistryRepository {
-    entries: Arc<RwLock<HashMap<Uuid, RegistryEntry>>>,
+    entries: Arc<RwLock<HashMap<DocumentId, RegistryEntry>>>,
 }
 
 #[async_trait]
 impl DocumentRegistryRepository for InMemoryDocumentRegistryRepository {
-    async fn get_entry(&self, doc_id: &Uuid) -> Result<Option<RegistryEntry>, AppError> {
+    async fn get_entry(&self, doc_id: &DocumentId) -> Result<Option<RegistryEntry>, AppError> {
         Ok(self.entries.read().get(doc_id).cloned())
     }
 
-    async fn list_by_folder(&self, folder_id: &Uuid) -> Result<Vec<RegistryEntry>, AppError> {
+    async fn list_by_folder(&self, folder_id: &FolderId) -> Result<Vec<RegistryEntry>, AppError> {
         let entries = self
             .entries
             .read()
@@ -93,7 +92,7 @@ impl DocumentRegistryRepository for InMemoryDocumentRegistryRepository {
         Ok(())
     }
 
-    async fn delete_entries(&self, ids: &[Uuid]) -> Result<u64, AppError> {
+    async fn delete_entries(&self, ids: &[DocumentId]) -> Result<u64, AppError> {
         let mut count = 0;
         let mut entries = self.entries.write();
         for id in ids {
@@ -107,7 +106,7 @@ impl DocumentRegistryRepository for InMemoryDocumentRegistryRepository {
 
 #[derive(Default)]
 pub struct InMemoryJobRepository {
-    jobs: Arc<RwLock<HashMap<Uuid, IndexingJob>>>,
+    jobs: Arc<RwLock<HashMap<JobId, IndexingJob>>>,
 }
 
 #[async_trait]
@@ -117,7 +116,7 @@ impl JobRepository for InMemoryJobRepository {
         Ok(())
     }
 
-    async fn update_progress(&self, id: &Uuid, update: &JobProgressUpdate) -> Result<(), AppError> {
+    async fn update_progress(&self, id: &JobId, update: &JobProgressUpdate) -> Result<(), AppError> {
         if let Some(job) = self.jobs.write().get_mut(id) {
             if let Some(status) = update.status {
                 job.status = status;
@@ -142,11 +141,11 @@ impl JobRepository for InMemoryJobRepository {
         Ok(())
     }
 
-    async fn get_job(&self, id: &Uuid) -> Result<Option<IndexingJob>, AppError> {
+    async fn get_job(&self, id: &JobId) -> Result<Option<IndexingJob>, AppError> {
         Ok(self.jobs.read().get(id).cloned())
     }
 
-    async fn mark_cancelled(&self, id: &Uuid) -> Result<(), AppError> {
+    async fn mark_cancelled(&self, id: &JobId) -> Result<(), AppError> {
         if let Some(job) = self.jobs.write().get_mut(id) {
             job.status = JobStatus::Cancelled;
             job.completed_at = Some(chrono::Utc::now());
@@ -244,7 +243,7 @@ impl SettingsRepository for InMemorySettingsRepository {
 
 #[derive(Default)]
 pub struct InMemorySearchRepository {
-    documents: Arc<RwLock<HashMap<Uuid, IndexedDocument>>>,
+    documents: Arc<RwLock<HashMap<DocumentId, IndexedDocument>>>,
 }
 
 #[async_trait]
@@ -269,12 +268,12 @@ impl SearchRepository for InMemorySearchRepository {
         })
     }
 
-    async fn delete_document(&self, id: &Uuid) -> Result<(), AppError> {
+    async fn delete_document(&self, id: &DocumentId) -> Result<(), AppError> {
         self.documents.write().remove(id);
         Ok(())
     }
 
-    async fn delete_documents_by_folder(&self, folder_id: &Uuid) -> Result<u64, AppError> {
+    async fn delete_documents_by_folder(&self, folder_id: &FolderId) -> Result<u64, AppError> {
         let mut write = self.documents.write();
         let initial_len = write.len();
         write.retain(|_, doc| doc.folder_id != *folder_id);

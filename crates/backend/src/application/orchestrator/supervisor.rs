@@ -177,9 +177,8 @@ pub fn spawn_worker_supervisor(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::models::{Folder, FolderStatus, IndexingJob, JobStatus};
+    use crate::domain::models::{Folder, FolderId, FolderStatus, IndexingJob, JobId, JobStatus};
     use std::sync::atomic::{AtomicU32, Ordering};
-    use uuid::Uuid;
 
     #[tokio::test]
     async fn test_recover_panicked_worker_resets_jobs_and_folders() {
@@ -187,7 +186,7 @@ mod tests {
         let job_tracker = Arc::new(JobTracker::new());
 
         let folder = Folder {
-            id: Uuid::new_v4(),
+            id: FolderId::new(),
             path: "/path/to/project".into(),
             status: FolderStatus::Scanning,
             created_at: chrono::Utc::now(),
@@ -195,12 +194,12 @@ mod tests {
         };
         repositories.folder.create_folder(&folder).await.unwrap();
 
-        let job_id = Uuid::new_v4();
+        let job_id = JobId::new();
         let token = CancellationToken::new();
         job_tracker.register_job(job_id, folder.id, token);
         let job_model = IndexingJob {
             id: job_id,
-            folder_id: folder.id,
+            folder_id: Some(folder.id),
             status: JobStatus::Running,
             files_total: 10,
             files_processed: 2,

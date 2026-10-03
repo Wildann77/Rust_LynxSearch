@@ -132,13 +132,13 @@ mod tests {
     use crate::domain::models::{Folder, FolderStatus, IndexingJob, JobStatus};
     use chrono::Utc;
     use std::path::PathBuf;
-    use uuid::Uuid;
+    use crate::domain::models::{FolderId, JobId};
 
     #[tokio::test]
     async fn test_shutdown_in_flight_jobs_cancels_jobs_and_resets_folders() {
         let repos = Repositories::in_memory();
         let tracker = JobTracker::new();
-        let folder_id = Uuid::new_v4();
+        let folder_id = FolderId::new();
 
         let mut folder = Folder::new(PathBuf::from("/test/shutdown"));
         folder.id = folder_id;
@@ -146,8 +146,8 @@ mod tests {
         repos.folder.create_folder(&folder).await.unwrap();
 
         let running_job = IndexingJob {
-            id: Uuid::new_v4(),
-            folder_id,
+            id: JobId::new(),
+            folder_id: Some(folder_id),
             status: JobStatus::Running,
             files_total: 100,
             files_processed: 25,
@@ -161,8 +161,8 @@ mod tests {
         repos.job.create_job(&running_job).await.unwrap();
 
         let pending_job = IndexingJob {
-            id: Uuid::new_v4(),
-            folder_id,
+            id: JobId::new(),
+            folder_id: Some(folder_id),
             status: JobStatus::Pending,
             files_total: 0,
             files_processed: 0,
@@ -176,8 +176,8 @@ mod tests {
         repos.job.create_job(&pending_job).await.unwrap();
 
         let completed_job = IndexingJob {
-            id: Uuid::new_v4(),
-            folder_id,
+            id: JobId::new(),
+            folder_id: Some(folder_id),
             status: JobStatus::Completed,
             files_total: 10,
             files_processed: 10,
