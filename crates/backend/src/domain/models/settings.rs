@@ -17,3 +17,23 @@ impl AppSettings {
         }
     }
 }
+
+impl Default for AppSettings {
+    fn default() -> Self {
+        Self {
+            max_file_size_bytes: 2 * 1024 * 1024,
+            weights: Bm25Weights {
+                title: 3.0,
+                tags: 2.0,
+                content: 1.0,
+            },
+            ignore_patterns: vec![
+                ".git".into(),
+                "node_modules".into(),
+                "target".into(),
+                "dist".into(),
+                "build".into(),
+            ],
+        }
+    }
+}
