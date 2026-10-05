@@ -130,9 +130,9 @@ pub async fn shutdown_signal() {
 mod tests {
     use super::*;
     use crate::domain::models::{Folder, FolderStatus, IndexingJob, JobStatus};
+    use crate::domain::models::{FolderId, JobId};
     use chrono::Utc;
     use std::path::PathBuf;
-    use crate::domain::models::{FolderId, JobId};
 
     #[tokio::test]
     async fn test_shutdown_in_flight_jobs_cancels_jobs_and_resets_folders() {
@@ -148,6 +148,7 @@ mod tests {
         let running_job = IndexingJob {
             id: JobId::new(),
             folder_id: Some(folder_id),
+            job_type: Default::default(),
             status: JobStatus::Running,
             files_total: 100,
             files_processed: 25,
@@ -163,6 +164,7 @@ mod tests {
         let pending_job = IndexingJob {
             id: JobId::new(),
             folder_id: Some(folder_id),
+            job_type: Default::default(),
             status: JobStatus::Pending,
             files_total: 0,
             files_processed: 0,
@@ -178,6 +180,7 @@ mod tests {
         let completed_job = IndexingJob {
             id: JobId::new(),
             folder_id: Some(folder_id),
+            job_type: Default::default(),
             status: JobStatus::Completed,
             files_total: 10,
             files_processed: 10,
