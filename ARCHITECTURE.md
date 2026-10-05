@@ -423,7 +423,7 @@ graph TD
 #### 2. Domain Events (Pemisahan Concern & Observabilitas)
 ```rust
 pub(crate) enum DomainEvent {
-    IndexingJobStarted { job_id: JobId, folder_id: FolderId },
+    IndexingJobStarted { job_id: JobId, folder_id: Option<FolderId> },
     DocumentIndexed { job_id: JobId, path: String },
     DocumentSkipped { job_id: JobId, path: String, reason: String },
     DocumentFailed { job_id: JobId, path: String, error: String },
@@ -821,8 +821,8 @@ Memecah identifier camelCase dan snake_case menjadi sub-kata, sambil mempertahan
           "type": "custom",
           "tokenizer": "whitespace",
           "filter": [
-            "lowercase",
             "code_subword_filter",
+            "lowercase",
             "flatten_graph"
           ]
         },
@@ -980,7 +980,7 @@ Seluruh response API menggunakan format seragam yang aman dan terstruktur.
 | `GET` | `/api/stats` | Statistik index (total dokumen, total ukuran, kategori) | `200 OK` |
 | `GET` | `/api/folders` | Daftar folder terdaftar & status scan | `200 OK` |
 | `POST` | `/api/index/folder` | Daftarkan folder baru / picu Re-scan | `202 Accepted` |
-| `POST` | `/api/index` | Index atau un-exclude 1 file dokumen tunggal (reset status EXCLUDED ke INDEXED) | `202 Accepted` |
+| `POST` | `/api/index` | Index atau un-exclude 1 file dokumen tunggal (reset status EXCLUDED ke INDEXED) | `200 OK` |
 | `DELETE` | `/api/folders/:id` | Hapus folder beserta dokumennya dari index | `200 OK` |
 | `GET` | `/api/index/jobs/:id` | Polling progres & status background job | `200 OK` |
 | `POST` | `/api/index/jobs/:id/cancel` | Batalkan background job yang sedang berjalan | `200 OK` |
@@ -1069,7 +1069,7 @@ Seluruh response API menggunakan format seragam yang aman dan terstruktur.
       "relative_path": "src/main.rs"
     }
     ```
-  - **Response (202 Accepted)**:
+  - **Response (200 OK)**:
     ```json
     {
       "document_id": "990e8400-e29b-41d4-a716-446655440002",

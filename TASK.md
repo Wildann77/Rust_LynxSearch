@@ -664,189 +664,190 @@
 
 ## 4.2 PostgreSQL migration 0001 — folders
 
-- [ ] Buat `folders`.
-- [ ] Fields:
-  - [ ] `id UUID PK`
-  - [ ] `root_path TEXT NOT NULL UNIQUE`
-  - [ ] `created_at`
-  - [ ] `last_scanned_at`
-  - [ ] `status`
-- [ ] Index root path.
-- [ ] Status allowed: `IDLE`, `SCANNING`, `ERROR`.
+- [x] Buat `folders`.
+- [x] Fields:
+  - [x] `id UUID PK`
+  - [x] `root_path TEXT NOT NULL UNIQUE`
+  - [x] `created_at`
+  - [x] `last_scanned_at`
+  - [x] `status`
+- [x] Index root path.
+- [x] Status allowed: `IDLE`, `SCANNING`, `ERROR`.
 
 ## 4.3 PostgreSQL migration 0002 — document registry
 
-- [ ] Buat `document_registry`.
-- [ ] Fields:
-  - [ ] `id`
-  - [ ] `folder_id`
-  - [ ] `relative_path`
-  - [ ] `content_hash`
-  - [ ] `file_size_bytes`
-  - [ ] `modified_at`
-  - [ ] `status`
-  - [ ] `status_reason`
-  - [ ] `last_indexed_at`
-- [ ] FK folder -> cascade delete.
-- [ ] Unique `(folder_id, relative_path)`.
-- [ ] Index folder_id.
-- [ ] Index status.
-- [ ] Status:
-  - [ ] `INDEXED`
-  - [ ] `SKIPPED`
-  - [ ] `FAILED`
-  - [ ] `EXCLUDED`
+- [x] Buat `document_registry`.
+- [x] Fields:
+  - [x] `id`
+  - [x] `folder_id`
+  - [x] `relative_path`
+  - [x] `content_hash`
+  - [x] `file_size_bytes`
+  - [x] `modified_at`
+  - [x] `status`
+  - [x] `status_reason`
+  - [x] `last_indexed_at`
+- [x] FK folder -> cascade delete.
+- [x] Unique `(folder_id, relative_path)`.
+- [x] Index folder_id.
+- [x] Index status.
+- [x] Status:
+  - [x] `INDEXED`
+  - [x] `SKIPPED`
+  - [x] `FAILED`
+  - [x] `EXCLUDED`
 
 ## 4.4 PostgreSQL migration 0003 — indexing jobs
 
-- [ ] Buat `indexing_jobs`.
-- [ ] `folder_id` nullable untuk global rebuild.
-- [ ] `job_type` = `IMPORT`, `RESCAN`, `REBUILD`.
-- [ ] `status` = `PENDING`, `RUNNING`, `COMPLETED`, `FAILED`, `CANCELLED`.
-- [ ] Counter:
-  - [ ] total
-  - [ ] added
-  - [ ] updated
-  - [ ] deleted
-  - [ ] skipped
-  - [ ] failed
-- [ ] Timestamp start/completed.
-- [ ] `error_summary`.
-- [ ] Index folder_id.
-- [ ] Index status.
+- [x] Buat `indexing_jobs`.
+- [x] `folder_id` nullable untuk global rebuild.
+- [x] `job_type` = `IMPORT`, `RESCAN`, `REBUILD`.
+- [x] `status` = `PENDING`, `RUNNING`, `COMPLETED`, `FAILED`, `CANCELLED`.
+- [x] Counter:
+  - [x] total
+  - [x] added
+  - [x] updated
+  - [x] deleted
+  - [x] skipped
+  - [x] failed
+- [x] Timestamp start/completed.
+- [x] `error_summary`.
+- [x] Index folder_id.
+- [x] Index status.
 
 ## 4.5 PostgreSQL migration 0004 — settings
 
-- [ ] Buat `settings`.
-- [ ] `key VARCHAR(64) PK`.
-- [ ] `value JSONB NOT NULL`.
-- [ ] `updated_at`.
-- [ ] Seed default settings bila diperlukan.
+- [x] Buat `settings`.
+- [x] `key VARCHAR(64) PK`.
+- [x] `value JSONB NOT NULL`.
+- [x] `updated_at`.
+- [x] Seed default settings bila diperlukan.
 
 ## 4.6 SQLx setup
 
-- [ ] Gunakan `sqlx::migrate!`.
-- [ ] Gunakan parameterized query.
-- [ ] Jangan gunakan `SELECT *`.
-- [ ] Konfigurasi pool:
-  - [ ] max 20
-  - [ ] min 5
-  - [ ] acquire timeout 3s
-  - [ ] idle timeout 10m
-  - [ ] max lifetime 30m
-- [ ] Pastikan pool menghandle startup/readiness failure dengan structured error.
+- [x] Gunakan `sqlx::migrate!`.
+- [x] Gunakan parameterized query.
+- [x] Jangan gunakan `SELECT *`.
+- [x] Konfigurasi pool:
+  - [x] max 20
+  - [x] min 5
+  - [x] acquire timeout 3s
+  - [x] idle timeout 10m
+  - [x] max lifetime 30m
+- [x] Pastikan pool menghandle startup/readiness failure dengan structured error.
 
 ## 4.7 Repository ports
 
-- [ ] Implement `SearchRepository`.
-- [ ] Implement `FolderRepository`.
-- [ ] Implement `DocumentRegistryRepository`.
-- [ ] Implement `JobRepository`.
-- [ ] Implement `SettingsRepository`.
-- [ ] Jangan membuat “God Repository” yang menggabungkan semua aggregate.
+- [x] Implement `SearchRepository`.
+- [x] Implement `FolderRepository`.
+- [x] Implement `DocumentRegistryRepository`.
+- [x] Implement `JobRepository`.
+- [x] Implement `SettingsRepository`.
+- [x] Jangan membuat “God Repository” yang menggabungkan semua aggregate.
 
 ## 4.8 PostgreSQL adapters
 
-- [ ] `connection.rs`.
-- [ ] `folder_repo.rs`.
-- [ ] `registry_repo.rs`.
-- [ ] `job_repo.rs`.
-- [ ] `settings_repo.rs`.
-- [ ] Implement CRUD/upsert/list operation sesuai port.
-- [ ] Implement batch upsert.
-- [ ] Implement batch deletion.
-- [ ] Implement job progress increment.
-- [ ] Implement job state transitions.
-- [ ] Implement setting get/update/reset support.
+- [x] `connection.rs`.
+- [x] `folder_repo.rs`.
+- [x] `registry_repo.rs`.
+- [x] `job_repo.rs`.
+- [x] `settings_repo.rs`.
+- [x] Implement CRUD/upsert/list operation sesuai port.
+- [x] Implement batch upsert.
+- [x] Implement batch deletion.
+- [x] Implement job progress increment.
+- [x] Implement job state transitions.
+- [x] Implement setting get/update/reset support.
 
 ## 4.9 Elasticsearch client adapter
 
-- [ ] Buat `infrastructure/elasticsearch/client.rs`.
-- [ ] Init client dari `ELASTICSEARCH_URL`.
-- [ ] Implement ping.
-- [ ] Implement clean abstraction sehingga domain tidak mengetahui client langsung.
-- [ ] Gunakan alias `lynx_documents` sebagai search target.
+- [x] Buat `infrastructure/elasticsearch/client.rs`.
+- [x] Init client dari `ELASTICSEARCH_URL`.
+- [x] Implement ping.
+- [x] Implement clean abstraction sehingga domain tidak mengetahui client langsung.
+- [x] Gunakan alias `lynx_documents` sebagai search target.
 
 ## 4.10 Elasticsearch schema
 
-- [ ] Buat mapping field:
-  - [ ] `id`
-  - [ ] `folder_id`
-  - [ ] `relative_path`
-  - [ ] `absolute_path` with `index: false`
-  - [ ] `title`
-  - [ ] `content`
-  - [ ] `tags`
-  - [ ] `extension`
-  - [ ] `language`
-  - [ ] `type`
-  - [ ] `project`
-  - [ ] `file_size_bytes`
-  - [ ] `modified_at`
-  - [ ] `indexed_at`
-- [ ] `title`:
-  - [ ] standard analyzer
-  - [ ] `title.code`
-  - [ ] `title.suggest`
-- [ ] `content`:
-  - [ ] standard analyzer
-  - [ ] `content.code`
-- [ ] keyword fields untuk filter/aggs.
+- [x] Buat mapping field:
+  - [x] `id`
+  - [x] `folder_id`
+  - [x] `relative_path`
+  - [x] `absolute_path` with `index: false`
+  - [x] `title`
+  - [x] `content`
+  - [x] `tags`
+  - [x] `extension`
+  - [x] `language`
+  - [x] `type`
+  - [x] `project`
+  - [x] `file_size_bytes`
+  - [x] `modified_at`
+  - [x] `indexed_at`
+- [x] `title`:
+  - [x] standard analyzer
+  - [x] `title.code`
+  - [x] `title.suggest`
+- [x] `content`:
+  - [x] standard analyzer
+  - [x] `content.code`
+- [x] keyword fields untuk filter/aggs.
 
 ## 4.11 Elasticsearch local index settings
 
-- [ ] `number_of_shards = 1`.
-- [ ] `number_of_replicas = 0`.
-- [ ] Buat alias `lynx_documents`.
-- [ ] Gunakan physical versioned indices:
-  - [ ] `lynx_documents_v1`
-  - [ ] `lynx_documents_v2`
-  - [ ] dst.
-- [ ] Pastikan first-run dapat membuat initial index + alias jika belum ada.
+- [x] `number_of_shards = 1`.
+- [x] `number_of_replicas = 0`.
+- [x] Buat alias `lynx_documents`.
+- [x] Gunakan physical versioned indices:
+  - [x] `lynx_documents_v1`
+  - [x] `lynx_documents_v2`
+  - [x] dst.
+- [x] Pastikan first-run dapat membuat initial index + alias jika belum ada.
+
 
 ## 4.12 Reindex alias contract
 
-- [ ] Implement create-versioned-index.
-- [ ] Implement alias inspection.
-- [ ] Implement alias swap.
-- [ ] Implement old-index cleanup.
-- [ ] Pastikan search selalu melalui alias.
+- [x] Implement create-versioned-index.
+- [x] Implement alias inspection.
+- [x] Implement alias swap.
+- [x] Implement old-index cleanup.
+- [x] Pastikan search selalu melalui alias.
 
 ## 4.13 Custom analyzer baseline
 
-- [ ] Buat `code_subword_filter`.
-- [ ] `word_delimiter_graph`.
-- [ ] Split camelCase/snake_case.
-- [ ] Preserve original token.
-- [ ] Buat `code_analyzer`.
-- [ ] Buat `autocomplete_filter` edge-ngram 2..20.
-- [ ] Buat `autocomplete_analyzer`.
-- [ ] Verifikasi index creation berhasil terhadap ES 8.19.22.
-- [ ] Jangan aktifkan fitur code-specific UI sebelum Phase 8, tetapi schema boleh disiapkan.
+- [x] Buat `code_subword_filter`.
+- [x] `word_delimiter_graph`.
+- [x] Split camelCase/snake_case.
+- [x] Preserve original token.
+- [x] Buat `code_analyzer`.
+- [x] Buat `autocomplete_filter` edge-ngram 2..20.
+- [x] Buat `autocomplete_analyzer`.
+- [x] Verifikasi index creation berhasil terhadap ES 8.19.22.
+- [x] Jangan aktifkan fitur code-specific UI sebelum Phase 8, tetapi schema boleh disiapkan.
 
 ## 4.14 Repository integration tests
 
-- [ ] `FolderRepository`: create/list/get/delete.
-- [ ] Unique root path.
-- [ ] Update last scanned.
-- [ ] `DocumentRegistryRepository`: get/list/upsert/delete.
-- [ ] Unique folder + relative path.
-- [ ] `JobRepository`: state transitions.
-- [ ] Progress counters.
-- [ ] `SettingsRepository`: get/update persistence.
-- [ ] `SearchRepository`: ping.
-- [ ] `SearchRepository`: initial mapping/index creation.
-- [ ] `SearchRepository`: alias behavior.
+- [x] `FolderRepository`: create/list/get/delete.
+- [x] Unique root path.
+- [x] Update last scanned.
+- [x] `DocumentRegistryRepository`: get/list/upsert/delete.
+- [x] Unique folder + relative path.
+- [x] `JobRepository`: state transitions.
+- [x] Progress counters.
+- [x] `SettingsRepository`: get/update persistence.
+- [x] `SearchRepository`: ping.
+- [x] `SearchRepository`: initial mapping/index creation.
+- [x] `SearchRepository`: alias behavior.
 
 ### Phase 3 Gate
 
-- [ ] `sqlx` migrations clean.
-- [ ] Repository integration test lulus.
-- [ ] PostgreSQL persistence lulus.
-- [ ] Elasticsearch index + alias + mapping dapat dibuat.
-- [ ] Elasticsearch client versi konsisten dan dapat ping.
-- [ ] Tidak ada SQL `SELECT *`.
-- [ ] Search repository dapat beroperasi melalui alias.
+- [x] `sqlx` migrations clean.
+- [x] Repository integration test lulus.
+- [x] PostgreSQL persistence lulus.
+- [x] Elasticsearch index + alias + mapping dapat dibuat.
+- [x] Elasticsearch client versi konsisten dan dapat ping.
+- [x] Tidak ada SQL `SELECT *`.
+- [x] Search repository dapat beroperasi melalui alias.
 
 ---
 
@@ -854,219 +855,219 @@
 
 ## 5.1 Domain events
 
-- [ ] Implement:
-  - [ ] `IndexingJobStarted`
-  - [ ] `DocumentIndexed`
-  - [ ] `DocumentSkipped`
-  - [ ] `DocumentFailed`
-  - [ ] `IndexingJobCompleted`
-  - [ ] `IndexRebuilt`
-- [ ] Pastikan event tidak melakukan I/O.
-- [ ] Gunakan event untuk logging/observability tanpa menaruh infra dependency di domain.
+- [x] Implement:
+  - [x] `IndexingJobStarted`
+  - [x] `DocumentIndexed`
+  - [x] `DocumentSkipped`
+  - [x] `DocumentFailed`
+  - [x] `IndexingJobCompleted`
+  - [x] `IndexRebuilt`
+- [x] Pastikan event tidak melakukan I/O.
+- [x] Gunakan event untuk logging/observability tanpa menaruh infra dependency di domain.
 
 ## 5.2 File System adapter
 
-- [ ] Implement `walker.rs`.
-- [ ] Gunakan crate `ignore`.
-- [ ] Hormati `.gitignore`.
-- [ ] Hormati `.ignore`.
-- [ ] Hormati global gitignore jika tersedia lewat crate behavior.
-- [ ] Skip hidden/dotfiles sesuai aturan traversal.
-- [ ] Terapkan ignore patterns dari settings.
-- [ ] Pastikan `.git`, `node_modules`, `target`, `dist`, `build` terabaikan secara default.
-- [ ] Jangan mengikuti file yang di-blacklist secret.
+- [x] Implement `walker.rs`.
+- [x] Gunakan crate `ignore`.
+- [x] Hormati `.gitignore`.
+- [x] Hormati `.ignore`.
+- [x] Hormati global gitignore jika tersedia lewat crate behavior.
+- [x] Skip hidden/dotfiles sesuai aturan traversal.
+- [x] Terapkan ignore patterns dari settings.
+- [x] Pastikan `.git`, `node_modules`, `target`, `dist`, `build` terabaikan secara default.
+- [x] Jangan mengikuti file yang di-blacklist secret.
 
 ## 5.3 Reader adapter
 
-- [ ] Implement `reader.rs`.
-- [ ] Read file melalui `spawn_blocking`.
-- [ ] Batasi concurrent file reads dengan `Semaphore`.
-- [ ] Default permits = 50.
-- [ ] Hash content SHA-256.
-- [ ] Return bytes + hash + metadata yang dibutuhkan extractor.
-- [ ] Hindari membuka ribuan file bersamaan.
+- [x] Implement `reader.rs`.
+- [x] Read file melalui `spawn_blocking`.
+- [x] Batasi concurrent file reads dengan `Semaphore`.
+- [x] Default permits = 50.
+- [x] Hash content SHA-256.
+- [x] Return bytes + hash + metadata yang dibutuhkan extractor.
+- [x] Hindari membuka ribuan file bersamaan.
 
 ## 5.4 DocumentExtractor
 
-- [ ] Implement pure `DocumentExtractor`.
-- [ ] Input: path + bytes + root context + file metadata.
-- [ ] Output canonical `ExtractedDoc` atau `Skipped`.
-- [ ] Tentukan title:
-  - [ ] Markdown -> H1 pertama.
-  - [ ] lainnya -> filename fallback.
-- [ ] Extract plain text content.
-- [ ] Detect extension.
-- [ ] Detect language.
-- [ ] Detect type.
-- [ ] Detect project.
-- [ ] Extract YAML front matter tags.
-- [ ] Preserve size.
-- [ ] Preserve modified time.
-- [ ] Detect binary.
-- [ ] Enforce max size.
-- [ ] Reject secret filenames/extensions.
-- [ ] Unit test semua mapping.
+- [x] Implement pure `DocumentExtractor`.
+- [x] Input: path + bytes + root context + file metadata.
+- [x] Output canonical `ExtractedDoc` atau `Skipped`.
+- [x] Tentukan title:
+  - [x] Markdown -> H1 pertama.
+  - [x] lainnya -> filename fallback.
+- [x] Extract plain text content.
+- [x] Detect extension.
+- [x] Detect language.
+- [x] Detect type.
+- [x] Detect project.
+- [x] Extract YAML front matter tags.
+- [x] Preserve size.
+- [x] Preserve modified time.
+- [x] Detect binary.
+- [x] Enforce max size.
+- [x] Reject secret filenames/extensions.
+- [x] Unit test semua mapping.
 
 ## 5.5 Binary detection
 
-- [ ] Tier 1: extension blacklist.
-- [ ] Tier 2: magic bytes via `infer`.
-- [ ] Tier 3: null-byte scan 8 KB pertama.
-- [ ] Event skip `BinaryFileDetected`.
-- [ ] Jangan membuat binary file sebagai search document.
+- [x] Tier 1: extension blacklist.
+- [x] Tier 2: magic bytes via `infer`.
+- [x] Tier 3: null-byte scan 8 KB pertama.
+- [x] Event skip `BinaryFileDetected`.
+- [x] Jangan membuat binary file sebagai search document.
 
 ## 5.6 Encoding
 
-- [ ] Try UTF-8 first.
-- [ ] Implement safe non-UTF-8 fallback sesuai capability dependency yang benar-benar tersedia.
-- [ ] Jika decoding tidak aman, fallback lossily.
-- [ ] Emit warning `LossyEncodingDecoded`.
-- [ ] Pastikan satu file encoding rusak tidak menggagalkan job.
+- [x] Try UTF-8 first.
+- [x] Implement safe non-UTF-8 fallback sesuai capability dependency yang benar-benar tersedia.
+- [x] Jika decoding tidak aman, fallback lossily.
+- [x] Emit warning `LossyEncodingDecoded`.
+- [x] Pastikan satu file encoding rusak tidak menggagalkan job.
 
 ## 5.7 Metadata project
 
-- [ ] `root/README.md` -> `project = null`.
-- [ ] `root/rust/ownership.md` -> `project = rust`.
-- [ ] `root/backend/redis.md` -> `project = backend`.
-- [ ] Pastikan hanya level pertama di bawah root yang dipakai.
+- [x] `root/README.md` -> `project = null`.
+- [x] `root/rust/ownership.md` -> `project = rust`.
+- [x] `root/backend/redis.md` -> `project = backend`.
+- [x] Pastikan hanya level pertama di bawah root yang dipakai.
 
 ## 5.8 ScanPlanner
 
-- [ ] Implement pure `ScanPlanner`.
-- [ ] Input:
-  - [ ] current filesystem inventory
-  - [ ] DB registry
-  - [ ] current settings.
-- [ ] Kategori:
-  - [ ] `to_add`
-  - [ ] `to_update`
-  - [ ] `to_delete`
-  - [ ] `to_skip`
-  - [ ] move/rename candidates
-- [ ] `EXCLUDED` -> `UserExcluded` skip.
-- [ ] Same mtime + same size -> unchanged fast path.
-- [ ] Different metadata -> compute hash.
-- [ ] Same hash -> skip as unchanged.
-- [ ] Different hash -> update.
-- [ ] DB record missing physically -> delete.
-- [ ] Physical file missing but DB status already EXCLUDED -> preserve exclusion semantics.
-- [ ] Candidate add/delete same content hash -> move candidate.
-- [ ] Ensure deterministic IDs.
+- [x] Implement pure `ScanPlanner`.
+- [x] Input:
+  - [x] current filesystem inventory
+  - [x] DB registry
+  - [x] current settings.
+- [x] Kategori:
+  - [x] `to_add`
+  - [x] `to_update`
+  - [x] `to_delete`
+  - [x] `to_skip`
+  - [x] move/rename candidates
+- [x] `EXCLUDED` -> `UserExcluded` skip.
+- [x] Same mtime + same size -> unchanged fast path.
+- [x] Different metadata -> compute hash.
+- [x] Same hash -> skip as unchanged.
+- [x] Different hash -> update.
+- [x] DB record missing physically -> delete.
+- [x] Physical file missing but DB status already EXCLUDED -> preserve exclusion semantics.
+- [x] Candidate add/delete same content hash -> move candidate.
+- [x] Ensure deterministic IDs.
 
 ## 5.9 Index identity
 
-- [ ] Derive document UUID deterministically from folder ID + relative path.
-- [ ] Repeat same scan -> same ID.
-- [ ] No random document IDs.
-- [ ] Rename path -> new deterministic document ID.
+- [x] Derive document UUID deterministically from folder ID + relative path.
+- [x] Repeat same scan -> same ID.
+- [x] No random document IDs.
+- [x] Rename path -> new deterministic document ID.
 
 ## 5.10 IndexOrchestrator
 
-- [ ] Create `application/orchestrator/`.
-- [ ] Implement worker queue.
-- [ ] Implement queue dispatcher.
-- [ ] Implement folder lock manager.
-- [ ] Implement in-memory JobTracker.
-- [ ] Use `DashMap` for job tracking.
-- [ ] Use appropriate Tokio mutex only across await where required.
-- [ ] Do not use a single global blocking mutex for all jobs.
+- [x] Create `application/orchestrator/`.
+- [x] Implement worker queue.
+- [x] Implement queue dispatcher.
+- [x] Implement folder lock manager.
+- [x] Implement in-memory JobTracker.
+- [x] Use `DashMap` for job tracking.
+- [x] Use appropriate Tokio mutex only across await where required.
+- [x] Do not use a single global blocking mutex for all jobs.
 
 ## 5.11 Job lifecycle
 
-- [ ] `PENDING`.
-- [ ] `RUNNING`.
-- [ ] `COMPLETED`.
-- [ ] `FAILED`.
-- [ ] `CANCELLED`.
-- [ ] Progress counters updated consistently.
-- [ ] `files_total` equals planning result expected for progress semantics.
-- [ ] Final summary persisted.
+- [x] `PENDING`.
+- [x] `RUNNING`.
+- [x] `COMPLETED`.
+- [x] `FAILED`.
+- [x] `CANCELLED`.
+- [x] Progress counters updated consistently.
+- [x] `files_total` equals planning result expected for progress semantics.
+- [x] Final summary persisted.
 
 ## 5.12 Regular scan execution
 
-- [ ] Create job.
-- [ ] Mark folder `SCANNING`.
-- [ ] Traverse files.
-- [ ] Build `ScanPlan`.
-- [ ] Extract new/updated docs.
-- [ ] Bulk index to Elasticsearch.
-- [ ] Delete missing documents.
-- [ ] Update registry.
-- [ ] Update counters.
-- [ ] Commit DB progress batch in chunks of 100 docs.
-- [ ] Make regular rescan idempotent.
+- [x] Create job.
+- [x] Mark folder `SCANNING`.
+- [x] Traverse files.
+- [x] Build `ScanPlan`.
+- [x] Extract new/updated docs.
+- [x] Bulk index to Elasticsearch.
+- [x] Delete missing documents.
+- [x] Update registry.
+- [x] Update counters.
+- [x] Commit DB progress batch in chunks of 100 docs.
+- [x] Make regular rescan idempotent.
 
 ## 5.13 Move/rename execution
 
-- [ ] Index new path using new deterministic ID.
-- [ ] Remove old path/index ID.
-- [ ] Update registry.
-- [ ] Do not leave both copies.
-- [ ] Add integration test verifying one logical document remains.
+- [x] Index new path using new deterministic ID.
+- [x] Remove old path/index ID.
+- [x] Update registry.
+- [x] Do not leave both copies.
+- [x] Add integration test verifying one logical document remains.
 
 ## 5.14 Per-file failure resilience
 
-- [ ] Catch extraction/read/hash errors at file boundary.
-- [ ] Mark registry `FAILED` with reason.
-- [ ] Increment failed counter.
-- [ ] Emit `DocumentFailed`.
-- [ ] Continue processing remaining files.
-- [ ] Do not fail entire job because one file fails.
+- [x] Catch extraction/read/hash errors at file boundary.
+- [x] Mark registry `FAILED` with reason.
+- [x] Increment failed counter.
+- [x] Emit `DocumentFailed`.
+- [x] Continue processing remaining files.
+- [x] Do not fail entire job because one file fails.
 
 ## 5.15 Job lock semantics
 
-- [ ] Only one indexing job active per folder.
-- [ ] Second trigger returns `409 JOB_CONFLICT`.
-- [ ] Lock released on:
-  - [ ] completed
-  - [ ] failed
-  - [ ] cancelled
-  - [ ] worker panic.
-- [ ] Rebuild uses global lock.
-- [ ] While rebuild is active, new scan job is rejected as specified.
+- [x] Only one indexing job active per folder.
+- [x] Second trigger returns `409 JOB_CONFLICT`.
+- [x] Lock released on:
+  - [x] completed
+  - [x] failed
+  - [x] cancelled
+  - [x] worker panic.
+- [x] Rebuild uses global lock.
+- [x] While rebuild is active, new scan job is rejected as specified.
 
 ## 5.16 Cancel API
 
-- [ ] Implement `POST /api/index/jobs/:id/cancel`.
-- [ ] Cancel only active job.
-- [ ] Signal `CancellationToken`.
-- [ ] Stop new file acquisition.
-- [ ] Finish active batch within grace policy.
-- [ ] Persist `CANCELLED`.
-- [ ] Release folder lock.
+- [x] Implement `POST /api/index/jobs/:id/cancel`.
+- [x] Cancel only active job.
+- [x] Signal `CancellationToken`.
+- [x] Stop new file acquisition.
+- [x] Finish active batch within grace policy.
+- [x] Persist `CANCELLED`.
+- [x] Release folder lock.
 
 ## 5.17 Folder APIs
 
-- [ ] `GET /api/folders`.
-- [ ] `POST /api/index/folder`.
-- [ ] New folder -> register + start initial import.
-- [ ] Existing folder -> trigger rescan.
-- [ ] Duplicate root -> clear validation/conflict response.
-- [ ] `DELETE /api/folders/:id`.
-- [ ] Delete folder metadata.
-- [ ] Delete corresponding Elasticsearch documents.
-- [ ] Rely on PostgreSQL FK cascade for metadata child rows.
-- [ ] Update folder status cleanly.
+- [x] `GET /api/folders`.
+- [x] `POST /api/index/folder`.
+- [x] New folder -> register + start initial import.
+- [x] Existing folder -> trigger rescan.
+- [x] Duplicate root -> clear validation/conflict response.
+- [x] `DELETE /api/folders/:id`.
+- [x] Delete folder metadata.
+- [x] Delete corresponding Elasticsearch documents.
+- [x] Rely on PostgreSQL FK cascade for metadata child rows.
+- [x] Update folder status cleanly.
 
 ## 5.18 Single-document exclusion/un-exclusion
 
-- [ ] `DELETE /api/documents/:id`.
-- [ ] Delete document from Elasticsearch.
-- [ ] Keep registry tombstone as `EXCLUDED`.
-- [ ] Persist reason.
-- [ ] Ensure next rescan does not resurrect it.
-- [ ] `POST /api/index` restores a previously EXCLUDED document.
-- [ ] Restore must set registry/index state according to contract.
+- [x] `DELETE /api/documents/:id`.
+- [x] Delete document from Elasticsearch.
+- [x] Keep registry tombstone as `EXCLUDED`.
+- [x] Persist reason.
+- [x] Ensure next rescan does not resurrect it.
+- [x] `POST /api/index` restores a previously EXCLUDED document.
+- [x] Restore must set registry/index state according to contract.
 
 ## 5.19 Job status API
 
-- [ ] Implement `GET /api/index/jobs/:id`.
-- [ ] Return:
-  - [ ] status
-  - [ ] counters
-  - [ ] timestamps
-  - [ ] error summary if applicable.
-- [ ] UI polling can consume this response.
+- [x] Implement `GET /api/index/jobs/:id`.
+- [x] Return:
+  - [x] status
+  - [x] counters
+  - [x] timestamps
+  - [x] error summary if applicable.
+- [x] UI polling can consume this response.
 
 ## 5.20 Rebuild index
 
@@ -1885,16 +1886,16 @@ Implement:
 - [ ] case behavior.
 
 ### DocumentExtractor
-- [ ] H1 title.
-- [ ] filename fallback.
-- [ ] front matter tags.
-- [ ] type.
-- [ ] language.
-- [ ] project.
-- [ ] binary detection.
-- [ ] max file size.
-- [ ] secret file rejection.
-- [ ] encoding fallback.
+- [x] H1 title.
+- [x] filename fallback.
+- [x] front matter tags.
+- [x] type.
+- [x] language.
+- [x] project.
+- [x] binary detection.
+- [x] max file size.
+- [x] secret file rejection.
+- [x] encoding fallback.
 
 ### ScanPlanner
 - [ ] add.
@@ -2204,10 +2205,10 @@ For `/api/documents/:id`:
 
 ## 14.3 Index jobs
 
-- [ ] `GET /api/index/jobs/:id`.
+- [x] `GET /api/index/jobs/:id`.
 - [ ] `POST /api/index/jobs/:id/cancel`.
 - [ ] `POST /api/index/rebuild`.
-- [ ] `POST /api/index` for restoring an excluded single document.
+- [x] `POST /api/index` for restoring an excluded single document.
 
 ## 14.4 Search
 
@@ -2229,7 +2230,7 @@ For `/api/documents/:id`:
 ## 14.6 Documents
 
 - [ ] `GET /api/documents/:id`.
-- [ ] `DELETE /api/documents/:id`.
+- [x] `DELETE /api/documents/:id`.
 
 ## 14.7 Settings/stats
 
