@@ -14,6 +14,7 @@ async fn test_startup_recovery_heals_running_and_pending_jobs() {
     let running_job = IndexingJob {
         id: JobId::new(),
         folder_id: Some(folder_id),
+        job_type: Default::default(),
         status: JobStatus::Running,
         files_total: 100,
         files_processed: 45,
@@ -29,6 +30,7 @@ async fn test_startup_recovery_heals_running_and_pending_jobs() {
     let pending_job = IndexingJob {
         id: JobId::new(),
         folder_id: Some(folder_id),
+        job_type: Default::default(),
         status: JobStatus::Pending,
         files_total: 0,
         files_processed: 0,
@@ -44,6 +46,7 @@ async fn test_startup_recovery_heals_running_and_pending_jobs() {
     let completed_job = IndexingJob {
         id: JobId::new(),
         folder_id: Some(folder_id),
+        job_type: Default::default(),
         status: JobStatus::Completed,
         files_total: 50,
         files_processed: 50,
@@ -59,6 +62,7 @@ async fn test_startup_recovery_heals_running_and_pending_jobs() {
     let failed_job = IndexingJob {
         id: JobId::new(),
         folder_id: Some(folder_id),
+        job_type: Default::default(),
         status: JobStatus::Failed,
         files_total: 20,
         files_processed: 5,
@@ -186,6 +190,7 @@ async fn test_startup_recovery_is_idempotent() {
     let job = IndexingJob {
         id: JobId::new(),
         folder_id: Some(folder_id),
+        job_type: Default::default(),
         status: JobStatus::Running,
         files_total: 50,
         files_processed: 10,
@@ -245,6 +250,7 @@ async fn test_app_state_recover_on_startup_integration() {
     let job = IndexingJob {
         id: JobId::new(),
         folder_id: Some(folder.id),
+        job_type: Default::default(),
         status: JobStatus::Pending,
         files_total: 200,
         files_processed: 0,

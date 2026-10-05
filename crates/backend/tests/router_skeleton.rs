@@ -79,7 +79,8 @@ async fn test_search_and_suggest_routes() {
 
 #[tokio::test]
 async fn test_folder_routes() {
-    let app = backend::create_router();
+    let (state, _rx) = backend::AppState::test_state();
+    let app = backend::create_router_with_state(state.clone());
 
     // 7. GET /api/folders
     let req = Request::builder()
@@ -91,7 +92,16 @@ async fn test_folder_routes() {
     assert_eq!(res.status(), StatusCode::OK);
 
     // 8. DELETE /api/folders/{id}
-    let folder_id = Uuid::new_v4();
+    let folder =
+        backend::domain::models::Folder::new(std::path::PathBuf::from("/test/folder_route"));
+    let folder_id = folder.id;
+    state
+        .repositories
+        .folder
+        .create_folder(&folder)
+        .await
+        .unwrap();
+
     let req = Request::builder()
         .uri(format!("/api/folders/{folder_id}"))
         .method("DELETE")
@@ -103,7 +113,8 @@ async fn test_folder_routes() {
 
 #[tokio::test]
 async fn test_index_and_job_routes() {
-    let app = backend::create_router();
+    let (state, _rx) = backend::AppState::test_state();
+    let app = backend::create_router_with_state(state.clone());
 
     // 9. POST /api/index/folder (202 Accepted)
     #[cfg(unix)]
@@ -121,9 +132,22 @@ async fn test_index_and_job_routes() {
     let res = app.clone().oneshot(req).await.unwrap();
     assert_eq!(res.status(), StatusCode::ACCEPTED);
 
-    // 10. POST /api/index (202 Accepted)
+    // 10. POST /api/index (200 OK)
+    let temp_dir = tempfile::tempdir().unwrap();
+    let file_path = temp_dir.path().join("src").join("lib.rs");
+    std::fs::create_dir_all(file_path.parent().unwrap()).unwrap();
+    std::fs::write(&file_path, "pub fn add(a: i32, b: i32) -> i32 { a + b }").unwrap();
+
+    let folder = backend::domain::models::Folder::new(temp_dir.path().to_path_buf());
+    state
+        .repositories
+        .folder
+        .create_folder(&folder)
+        .await
+        .unwrap();
+
     let body = serde_json::to_vec(&json!({
-        "folder_id": Uuid::new_v4(),
+        "folder_id": *folder.id.as_uuid(),
         "relative_path": "src/lib.rs"
     }))
     .unwrap();
@@ -134,10 +158,15 @@ async fn test_index_and_job_routes() {
         .body(Body::from(body))
         .unwrap();
     let res = app.clone().oneshot(req).await.unwrap();
-    assert_eq!(res.status(), StatusCode::ACCEPTED);
+    assert_eq!(res.status(), StatusCode::OK);
 
     // 11. GET /api/index/jobs/{id}
     let job_id = Uuid::new_v4();
+    state.job_tracker.register_job(
+        backend::domain::models::JobId::from_uuid(job_id),
+        None,
+        tokio_util::sync::CancellationToken::new(),
+    );
     let req = Request::builder()
         .uri(format!("/api/index/jobs/{job_id}"))
         .method("GET")
@@ -167,12 +196,32 @@ async fn test_index_and_job_routes() {
 
 #[tokio::test]
 async fn test_document_routes() {
-    let app = backend::create_router();
-    let doc_id = Uuid::new_v4();
+    let (state, _rx) = backend::AppState::test_state();
+    let app = backend::create_router_with_state(state.clone());
+    let folder_id = backend::domain::models::FolderId::new();
+    let doc_id = backend::domain::models::DocumentId::from_relative_path(folder_id, "src/main.rs");
+
+    let entry = backend::domain::models::RegistryEntry {
+        id: doc_id,
+        folder_id,
+        relative_path: "src/main.rs".to_string(),
+        content_hash: "hash".to_string(),
+        file_size: 100,
+        status: backend::domain::models::DocumentStatus::Indexed,
+        status_reason: None,
+        indexed_at: chrono::Utc::now(),
+        updated_at: chrono::Utc::now(),
+    };
+    state
+        .repositories
+        .registry
+        .upsert_entry(&entry)
+        .await
+        .unwrap();
 
     // 14. GET /api/documents/{id}
     let req = Request::builder()
-        .uri(format!("/api/documents/{doc_id}"))
+        .uri(format!("/api/documents/{}", doc_id.as_uuid()))
         .method("GET")
         .body(Body::empty())
         .unwrap();
@@ -181,7 +230,7 @@ async fn test_document_routes() {
 
     // 15. DELETE /api/documents/{id}
     let req = Request::builder()
-        .uri(format!("/api/documents/{doc_id}"))
+        .uri(format!("/api/documents/{}", doc_id.as_uuid()))
         .method("DELETE")
         .body(Body::empty())
         .unwrap();

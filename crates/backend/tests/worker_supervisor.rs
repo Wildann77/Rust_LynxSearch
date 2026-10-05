@@ -36,6 +36,7 @@ async fn test_recover_panicked_worker_marks_jobs_failed_and_releases_folders() {
     let running_job = IndexingJob {
         id: job_id,
         folder_id: Some(folder_id),
+        job_type: Default::default(),
         status: JobStatus::Running,
         files_total: 50,
         files_processed: 10,

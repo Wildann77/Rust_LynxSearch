@@ -26,6 +26,7 @@ async fn test_graceful_shutdown_cancels_in_flight_jobs_and_resets_folders() {
     let running_job = IndexingJob {
         id: JobId::new(),
         folder_id: Some(folder_id),
+        job_type: Default::default(),
         status: JobStatus::Running,
         files_total: 100,
         files_processed: 30,
@@ -46,6 +47,7 @@ async fn test_graceful_shutdown_cancels_in_flight_jobs_and_resets_folders() {
     let pending_job = IndexingJob {
         id: JobId::new(),
         folder_id: Some(folder_id),
+        job_type: Default::default(),
         status: JobStatus::Pending,
         files_total: 0,
         files_processed: 0,
@@ -66,6 +68,7 @@ async fn test_graceful_shutdown_cancels_in_flight_jobs_and_resets_folders() {
     let completed_job = IndexingJob {
         id: JobId::new(),
         folder_id: Some(folder_id),
+        job_type: Default::default(),
         status: JobStatus::Completed,
         files_total: 50,
         files_processed: 50,
@@ -86,6 +89,7 @@ async fn test_graceful_shutdown_cancels_in_flight_jobs_and_resets_folders() {
     let failed_job = IndexingJob {
         id: JobId::new(),
         folder_id: Some(folder_id),
+        job_type: Default::default(),
         status: JobStatus::Failed,
         files_total: 10,
         files_processed: 2,
