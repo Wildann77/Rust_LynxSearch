@@ -24,6 +24,58 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let (app_state, worker_rx) =
         AppState::from_config(config.clone()).map_err(|e| format!("AppState error: {e}"))?;
 
+    // Verify database readiness and apply pending migrations
+    match backend::infrastructure::postgres::connection::check_database_readiness(
+        &app_state.db_pool,
+    )
+    .await
+    {
+        Ok(()) => {
+            tracing::info!("PostgreSQL connection verified ready");
+            if let Err(e) =
+                backend::infrastructure::postgres::connection::run_migrations(&app_state.db_pool)
+                    .await
+            {
+                tracing::error!(error = %e, "Database migration failed on startup");
+                return Err(format!("Database migration error: {e}").into());
+            }
+            tracing::info!("Database migrations applied successfully");
+        }
+        Err(e) => {
+            tracing::warn!(
+                error = %e,
+                code = e.error_code().as_str(),
+                "PostgreSQL not ready on startup; server starting in degraded mode"
+            );
+        }
+    }
+
+    // Verify Elasticsearch readiness and ensure initial index + alias
+    match app_state.repositories.search.ping().await {
+        Ok(()) => {
+            tracing::info!("Elasticsearch connection verified ready");
+            match app_state.repositories.search.ensure_initial_index().await {
+                Ok(active_idx) => {
+                    tracing::info!(
+                        active_index = %active_idx,
+                        "Elasticsearch initial index + alias verified ready"
+                    );
+                }
+                Err(e) => {
+                    tracing::error!(error = %e, "Elasticsearch initial index bootstrap failed");
+                    return Err(format!("Elasticsearch initial index bootstrap error: {e}").into());
+                }
+            }
+        }
+        Err(e) => {
+            tracing::warn!(
+                error = %e,
+                code = e.error_code().as_str(),
+                "Elasticsearch not ready on startup; server starting in degraded mode"
+            );
+        }
+    }
+
     let recovery_report = app_state
         .recover_on_startup()
         .await

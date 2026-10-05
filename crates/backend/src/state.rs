@@ -1,4 +1,4 @@
-use crate::application::orchestrator::{JobTracker, WorkerCommand};
+use crate::application::orchestrator::{IndexOrchestrator, JobTracker, WorkerCommand};
 use crate::config::AppConfig;
 use crate::domain::models::AppSettings;
 use crate::domain::ports::stubs::{
@@ -11,9 +11,7 @@ use crate::domain::ports::{
 };
 use crate::error::AppError;
 use elasticsearch::Elasticsearch;
-use elasticsearch::http::transport::Transport;
 use sqlx::PgPool;
-use sqlx::postgres::PgPoolOptions;
 use std::ops::Deref;
 use std::sync::Arc;
 use tokio::sync::{RwLock, Semaphore, mpsc};
@@ -49,6 +47,24 @@ impl Repositories {
             search: Arc::new(InMemorySearchRepository::default()),
         }
     }
+
+    pub fn from_postgres(pool: PgPool, search: Arc<dyn SearchRepository>) -> Self {
+        Self {
+            folder: Arc::new(crate::infrastructure::postgres::PgFolderRepository::new(
+                pool.clone(),
+            )),
+            registry: Arc::new(
+                crate::infrastructure::postgres::PgDocumentRegistryRepository::new(pool.clone()),
+            ),
+            job: Arc::new(crate::infrastructure::postgres::PgJobRepository::new(
+                pool.clone(),
+            )),
+            settings: Arc::new(crate::infrastructure::postgres::PgSettingsRepository::new(
+                pool,
+            )),
+            search,
+        }
+    }
 }
 
 pub struct AppStateInner {
@@ -56,10 +72,13 @@ pub struct AppStateInner {
     pub es_client: Elasticsearch,
     pub repositories: Repositories,
     pub job_tracker: Arc<JobTracker>,
+    pub orchestrator: Arc<IndexOrchestrator>,
     pub worker_sender: mpsc::Sender<WorkerCommand>,
     pub file_io_semaphore: Arc<Semaphore>,
     pub config: Arc<AppConfig>,
     pub settings: Arc<RwLock<AppSettings>>,
+    pub event_recorder:
+        std::sync::RwLock<Option<Arc<crate::domain::events::RecordingDomainEventHandler>>>,
 }
 
 #[derive(Clone)]
@@ -86,16 +105,38 @@ impl AppState {
         config: Arc<AppConfig>,
         settings: Arc<RwLock<AppSettings>>,
     ) -> Self {
+        let file_reader = Arc::new(crate::infrastructure::fs::LocalFileReader::new(
+            file_io_semaphore.clone(),
+        ));
+        let file_walker = Arc::new(crate::infrastructure::fs::LocalFileWalker::new());
+
+        let dispatcher = crate::domain::events::DomainEventDispatcher::new();
+        dispatcher.register(Arc::new(
+            crate::infrastructure::events::TracingDomainEventHandler::new(),
+        ));
+        let event_dispatcher = Arc::new(dispatcher);
+
+        let orchestrator = Arc::new(IndexOrchestrator::new(
+            repositories.clone(),
+            job_tracker.clone(),
+            worker_sender.clone(),
+            file_walker,
+            file_reader,
+            event_dispatcher,
+        ));
+
         Self {
             inner: Arc::new(AppStateInner {
                 db_pool,
                 es_client,
                 repositories,
                 job_tracker,
+                orchestrator,
                 worker_sender,
                 file_io_semaphore,
                 config,
                 settings,
+                event_recorder: std::sync::RwLock::new(None),
             }),
         }
     }
@@ -103,16 +144,21 @@ impl AppState {
     pub fn from_config(
         config: AppConfig,
     ) -> Result<(Self, mpsc::Receiver<WorkerCommand>), AppError> {
-        let db_pool = PgPoolOptions::new()
-            .connect_lazy(&config.database_url)
-            .map_err(AppError::Database)?;
+        let db_pool =
+            crate::infrastructure::postgres::connection::create_pg_pool_lazy(&config.database_url)?;
 
-        let transport = Transport::single_node(&config.elasticsearch_url)
-            .map_err(|e| AppError::SearchEngine(e.to_string()))?;
-        let es_client = Elasticsearch::new(transport);
+        let es_client =
+            crate::infrastructure::elasticsearch::create_es_client(&config.elasticsearch_url)?;
 
         let initial_settings = AppSettings::from_config(&config);
-        let repositories = Repositories::in_memory_with_settings(initial_settings.clone());
+        let search_repo = Arc::new(
+            crate::infrastructure::elasticsearch::EsSearchRepository::new(
+                es_client.clone(),
+                config.elasticsearch_index_alias.clone(),
+            ),
+        );
+        let mut repositories = Repositories::in_memory_with_settings(initial_settings.clone());
+        repositories.search = search_repo;
         let job_tracker = Arc::new(JobTracker::new());
         let (worker_sender, worker_receiver) = mpsc::channel(DEFAULT_WORKER_CHANNEL_CAPACITY);
         let file_io_semaphore = Arc::new(Semaphore::new(config.file_read_concurrency_limit));
@@ -154,7 +200,25 @@ impl AppState {
             file_read_concurrency_limit: 50,
         };
 
-        Self::from_config(config).expect("Failed to initialize test state")
+        let (state, rx) = Self::from_config(config).expect("Failed to initialize test state");
+        let recorder = Arc::new(crate::domain::events::RecordingDomainEventHandler::new());
+        state
+            .orchestrator
+            .event_dispatcher()
+            .register(recorder.clone());
+        if let Ok(mut lock) = state.inner.event_recorder.write() {
+            *lock = Some(recorder);
+        }
+        (state, rx)
+    }
+
+    pub fn recorded_events(&self) -> Vec<crate::domain::events::DomainEvent> {
+        self.inner
+            .event_recorder
+            .read()
+            .ok()
+            .and_then(|r| r.as_ref().map(|rec| rec.recorded_events()))
+            .unwrap_or_default()
     }
 
     pub async fn get_settings(&self) -> AppSettings {
@@ -179,6 +243,10 @@ impl AppState {
 
     pub fn shutdown_token(&self) -> tokio_util::sync::CancellationToken {
         self.job_tracker.shutdown_token()
+    }
+
+    pub fn orchestrator(&self) -> &Arc<IndexOrchestrator> {
+        &self.orchestrator
     }
 
     pub async fn graceful_shutdown<T: Send + 'static>(
@@ -341,6 +409,7 @@ mod tests {
         let job = IndexingJob {
             id: JobId::new(),
             folder_id: Some(folder.id),
+            job_type: Default::default(),
             status: JobStatus::Running,
             files_total: 10,
             files_processed: 3,
@@ -406,6 +475,7 @@ mod tests {
         let job = IndexingJob {
             id: JobId::new(),
             folder_id: Some(folder.id),
+            job_type: Default::default(),
             status: JobStatus::Running,
             files_total: 10,
             files_processed: 2,
@@ -456,5 +526,18 @@ mod tests {
 
         assert!(state.job_tracker.is_shutting_down());
         assert!(state.db_pool.is_closed());
+    }
+
+    #[tokio::test]
+    async fn test_repositories_from_postgres_creation() {
+        let pool = crate::infrastructure::postgres::connection::create_pg_pool_lazy(
+            "postgres://postgres:postgres@127.0.0.1:5432/lynx_search_test",
+        )
+        .unwrap();
+        let search = Arc::new(InMemorySearchRepository::default());
+        let repos = Repositories::from_postgres(pool, search);
+
+        // Verify that calling through trait object dispatch works cleanly and fails gracefully on unconnectable DB
+        assert!(repos.folder.list_folders().await.is_err());
     }
 }

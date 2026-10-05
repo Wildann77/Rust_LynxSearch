@@ -13,6 +13,12 @@ pub use application::{
     drain_worker_with_grace_period, recover_on_startup, shutdown_in_flight_jobs, shutdown_signal,
 };
 pub use config::{AppConfig, Bm25Weights, ConfigError};
+pub use domain::events::{
+    DocumentFailed, DocumentIndexed, DocumentSkipped, DomainEvent, DomainEventDispatcher,
+    DomainEventHandler, IndexRebuilt, IndexingJobCompleted, IndexingJobStarted, JobSummary,
+    RecordingDomainEventHandler,
+};
 pub use domain::models::AppSettings;
 pub use error::{AppError, ErrorCode, ErrorResponse};
+pub use infrastructure::events::TracingDomainEventHandler;
 pub use state::{AppState, Repositories};
