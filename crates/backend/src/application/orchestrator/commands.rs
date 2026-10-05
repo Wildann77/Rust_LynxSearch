@@ -13,5 +13,6 @@ pub enum WorkerCommand {
     },
     RebuildIndex {
         job_id: JobId,
+        target_index: String,
     },
 }
