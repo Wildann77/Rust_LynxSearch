@@ -282,8 +282,14 @@ mod tests {
         assert_eq!(DocumentType::from_extension("txt"), Some(DocumentType::Doc));
         assert_eq!(DocumentType::from_extension("rs"), Some(DocumentType::Code));
         assert_eq!(DocumentType::from_extension("py"), Some(DocumentType::Code));
-        assert_eq!(DocumentType::from_extension("json"), Some(DocumentType::Config));
-        assert_eq!(DocumentType::from_extension("toml"), Some(DocumentType::Config));
+        assert_eq!(
+            DocumentType::from_extension("json"),
+            Some(DocumentType::Config)
+        );
+        assert_eq!(
+            DocumentType::from_extension("toml"),
+            Some(DocumentType::Config)
+        );
         assert_eq!(DocumentType::from_extension("unknown"), None);
     }
 
@@ -299,7 +305,10 @@ mod tests {
 
     #[test]
     fn test_filter_key_parsing() {
-        assert_eq!(FilterKey::from_str("language").unwrap(), FilterKey::Language);
+        assert_eq!(
+            FilterKey::from_str("language").unwrap(),
+            FilterKey::Language
+        );
         assert_eq!(FilterKey::from_str("tag").unwrap(), FilterKey::Tag);
         assert_eq!(FilterKey::from_str("tags").unwrap(), FilterKey::Tag);
         assert_eq!(FilterKey::from_str("project").unwrap(), FilterKey::Project);
