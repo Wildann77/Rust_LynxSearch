@@ -31,13 +31,12 @@ pub async fn get_document(
 }
 
 pub async fn delete_document(
-    _state: State<AppState>,
+    State(state): State<AppState>,
     ValidatedPath(path): ValidatedPath<PathUuid>,
-) -> impl IntoResponse {
-    Json(json!({
-        "success": true,
-        "id": path.id,
-        "status": "EXCLUDED",
-        "message": "Document removed from search index and marked as EXCLUDED."
-    }))
+) -> Result<impl IntoResponse, crate::error::AppError> {
+    let doc_id = crate::domain::models::DocumentId::from_uuid(path.id);
+    let response =
+        crate::application::commands::document::exclude_document(&state.repositories, &doc_id)
+            .await?;
+    Ok((axum::http::StatusCode::OK, Json(response)))
 }
