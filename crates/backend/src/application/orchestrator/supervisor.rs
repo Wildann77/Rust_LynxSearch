@@ -1,4 +1,4 @@
-use crate::application::orchestrator::{JobTracker, WorkerCommand};
+use crate::application::orchestrator::{IndexOrchestrator, JobTracker, WorkerCommand};
 use crate::error::AppError;
 use crate::state::Repositories;
 use std::future::Future;
@@ -23,8 +23,9 @@ pub async fn recover_panicked_worker(
     // 1. Mark in-memory active jobs as FAILED and cancel tokens
     job_tracker.fail_running_jobs(WORKER_PANIC_ERROR_MSG);
 
-    // 2. Release any folder locks held in memory
+    // 2. Release any folder locks and rebuild locks held in memory
     job_tracker.clear_folder_locks();
+    job_tracker.clear_rebuild_lock();
 
     // 3. Mark database active jobs as FAILED
     let jobs_failed = repositories
@@ -114,7 +115,40 @@ pub async fn run_supervisor<F, Fut>(
     }
 }
 
-/// Default worker loop processing incoming `WorkerCommand`s from a shared receiver mutex.
+/// Worker loop processing incoming `WorkerCommand`s and dispatching via `IndexOrchestrator`.
+pub async fn run_orchestrator_worker_loop(
+    orchestrator: Arc<IndexOrchestrator>,
+    receiver: Arc<Mutex<mpsc::Receiver<WorkerCommand>>>,
+    shutdown_token: CancellationToken,
+) {
+    loop {
+        tokio::select! {
+            _ = shutdown_token.cancelled() => {
+                tracing::info!("Worker loop received shutdown signal, stopped accepting new tasks");
+                break;
+            }
+            cmd_opt = async {
+                let mut rx = receiver.lock().await;
+                rx.recv().await
+            } => {
+                match cmd_opt {
+                    Some(cmd) => {
+                        tracing::debug!("Worker received command: {cmd:?}");
+                        if let Err(err) = orchestrator.dispatch(cmd).await {
+                            tracing::error!("Error dispatching worker command: {err}");
+                        }
+                    }
+                    None => {
+                        tracing::debug!("Worker command channel closed");
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Fallback worker loop for test scenarios without an orchestrator instance.
 pub async fn run_worker_loop(
     receiver: Arc<Mutex<mpsc::Receiver<WorkerCommand>>>,
     shutdown_token: CancellationToken,
@@ -143,6 +177,36 @@ pub async fn run_worker_loop(
     }
 }
 
+/// Spawns a supervised worker loop task using an `IndexOrchestrator`.
+pub fn spawn_orchestrator_supervisor(
+    orchestrator: Arc<IndexOrchestrator>,
+    worker_rx: mpsc::Receiver<WorkerCommand>,
+    shutdown_token: CancellationToken,
+    backoff: Duration,
+) -> JoinHandle<()> {
+    let rx_arc = Arc::new(Mutex::new(worker_rx));
+    let token_clone = shutdown_token.clone();
+    let repositories = orchestrator.repositories().clone();
+    let job_tracker = orchestrator.job_tracker().clone();
+
+    tokio::spawn(async move {
+        let rx_for_factory = rx_arc.clone();
+        let token_for_factory = token_clone.clone();
+        let orch_for_factory = orchestrator.clone();
+
+        let factory = move || {
+            let rx = rx_for_factory.clone();
+            let token = token_for_factory.clone();
+            let orch = orch_for_factory.clone();
+            async move {
+                run_orchestrator_worker_loop(orch, rx, token).await;
+            }
+        };
+
+        run_supervisor(factory, repositories, job_tracker, token_clone, backoff).await;
+    })
+}
+
 /// Spawns a supervised worker loop task.
 ///
 /// Wraps `worker_rx` in an `Arc<Mutex>` so that receiver and buffered messages
@@ -155,23 +219,13 @@ pub fn spawn_worker_supervisor(
     shutdown_token: CancellationToken,
     backoff: Duration,
 ) -> JoinHandle<()> {
-    let rx_arc = Arc::new(Mutex::new(worker_rx));
-    let token_clone = shutdown_token.clone();
-
-    tokio::spawn(async move {
-        let rx_for_factory = rx_arc.clone();
-        let token_for_factory = token_clone.clone();
-
-        let factory = move || {
-            let rx = rx_for_factory.clone();
-            let token = token_for_factory.clone();
-            async move {
-                run_worker_loop(rx, token).await;
-            }
-        };
-
-        run_supervisor(factory, repositories, job_tracker, token_clone, backoff).await;
-    })
+    let (tx, _) = mpsc::channel(1);
+    let orchestrator = Arc::new(IndexOrchestrator::with_default_fs(
+        repositories,
+        job_tracker,
+        tx,
+    ));
+    spawn_orchestrator_supervisor(orchestrator, worker_rx, shutdown_token, backoff)
 }
 
 #[cfg(test)]
@@ -200,6 +254,7 @@ mod tests {
         let job_model = IndexingJob {
             id: job_id,
             folder_id: Some(folder.id),
+            job_type: Default::default(),
             status: JobStatus::Running,
             files_total: 10,
             files_processed: 2,
