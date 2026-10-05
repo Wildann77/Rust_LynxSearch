@@ -60,6 +60,89 @@ impl IndexDocumentRequestDto {
     }
 }
 
+use chrono::{DateTime, Utc};
+
+use crate::application::orchestrator::JobProgressState;
+use crate::domain::models::IndexingJob;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct IndexDocumentResponseDto {
+    pub document_id: Uuid,
+    pub status: String,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RebuildIndexResponseDto {
+    pub job_id: Uuid,
+    pub target_index: String,
+    pub status: String,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct JobStatusResponseDto {
+    pub job_id: Uuid,
+    pub folder_id: Option<Uuid>,
+    pub status: String,
+    pub processed_files: i32,
+    pub indexed_files: i32,
+    pub skipped_files: i32,
+    pub failed_files: i32,
+    pub total_files: i32,
+    pub error: Option<String>,
+    pub started_at: DateTime<Utc>,
+    pub finished_at: Option<DateTime<Utc>>,
+}
+
+impl From<&JobProgressState> for JobStatusResponseDto {
+    fn from(state: &JobProgressState) -> Self {
+        Self {
+            job_id: *state.job_id.as_uuid(),
+            folder_id: state.folder_id.as_ref().map(|f| *f.as_uuid()),
+            status: state.status.as_str().to_string(),
+            processed_files: state.files_processed,
+            indexed_files: state.files_indexed,
+            skipped_files: state.files_skipped,
+            failed_files: state.files_failed,
+            total_files: state.files_total,
+            error: state.error_summary.clone(),
+            started_at: state.started_at,
+            finished_at: state.completed_at,
+        }
+    }
+}
+
+impl From<JobProgressState> for JobStatusResponseDto {
+    fn from(state: JobProgressState) -> Self {
+        Self::from(&state)
+    }
+}
+
+impl From<&IndexingJob> for JobStatusResponseDto {
+    fn from(job: &IndexingJob) -> Self {
+        Self {
+            job_id: *job.id.as_uuid(),
+            folder_id: job.folder_id.as_ref().map(|f| *f.as_uuid()),
+            status: job.status.as_str().to_string(),
+            processed_files: job.files_processed,
+            indexed_files: job.files_indexed,
+            skipped_files: job.files_skipped,
+            failed_files: job.files_failed,
+            total_files: job.files_total,
+            error: job.error_summary.clone(),
+            started_at: job.started_at,
+            finished_at: job.completed_at,
+        }
+    }
+}
+
+impl From<IndexingJob> for JobStatusResponseDto {
+    fn from(job: IndexingJob) -> Self {
+        Self::from(&job)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

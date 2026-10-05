@@ -55,23 +55,79 @@ pub fn validate_folder_root_path(root_path: &str) -> Result<(), ValidationError>
     Ok(())
 }
 
+use crate::domain::models::FolderStatus;
+use chrono::{DateTime, Utc};
+use uuid::Uuid;
+
+fn validate_register_folder_dto(dto: &RegisterFolderRequestDto) -> Result<(), ValidationError> {
+    if dto.folder_id.is_none() && dto.root_path.is_none() {
+        let mut err = ValidationError::new("missing_identifier");
+        err.message = Some(Cow::Borrowed(
+            "Salah satu dari folder_id atau root_path wajib disertakan",
+        ));
+        return Err(err);
+    }
+
+    Ok(())
+}
+
 /// DTO request body untuk endpoint `POST /api/index/folder`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate)]
+#[validate(schema(function = "validate_register_folder_dto"))]
 pub struct RegisterFolderRequestDto {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub folder_id: Option<Uuid>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     #[validate(custom(function = "validate_folder_root_path"))]
-    pub root_path: String,
+    pub root_path: Option<String>,
 }
 
 impl RegisterFolderRequestDto {
     pub fn new(root_path: impl Into<String>) -> Self {
         Self {
-            root_path: root_path.into(),
+            folder_id: None,
+            root_path: Some(root_path.into()),
+        }
+    }
+
+    pub fn for_rescan(folder_id: Uuid) -> Self {
+        Self {
+            folder_id: Some(folder_id),
+            root_path: None,
         }
     }
 
     pub fn normalized_path(&self) -> &str {
-        self.root_path.trim()
+        self.root_path.as_deref().unwrap_or("").trim()
     }
+}
+
+/// DTO respons untuk `GET /api/folders`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FolderResponseDto {
+    pub id: Uuid,
+    pub root_path: String,
+    pub status: FolderStatus,
+    pub document_count: u64,
+    pub last_scanned_at: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
+}
+
+/// DTO respons untuk `POST /api/index/folder`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct IndexFolderResponseDto {
+    pub job_id: Uuid,
+    pub folder_id: Uuid,
+    pub status: String,
+    pub message: String,
+}
+
+/// DTO respons untuk `DELETE /api/folders/:id`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DeleteFolderResponseDto {
+    pub success: bool,
+    pub folder_id: Uuid,
+    pub deleted_documents: u64,
 }
 
 #[cfg(test)]
