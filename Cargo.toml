@@ -29,7 +29,7 @@ parking_lot = "0.12"
 dashmap = "6.1"
 
 # Database & Search Engine
-sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "uuid", "chrono", "json"] }
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "uuid", "chrono", "json", "migrate", "macros"] }
 elasticsearch = { version = "=8.19.0-alpha.1", default-features = false, features = ["rustls-tls"] }
 
 # Serialization & Validation
