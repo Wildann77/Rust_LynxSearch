@@ -14,6 +14,7 @@ use uuid::Uuid;
 pub enum ErrorCode {
     FolderNotFound,
     DocumentNotFound,
+    JobNotFound,
     JobConflict,
     ValidationFailed,
     PathTraversalDetected,
@@ -30,6 +31,7 @@ impl ErrorCode {
         match self {
             Self::FolderNotFound => "FOLDER_NOT_FOUND",
             Self::DocumentNotFound => "DOCUMENT_NOT_FOUND",
+            Self::JobNotFound => "JOB_NOT_FOUND",
             Self::JobConflict => "JOB_CONFLICT",
             Self::ValidationFailed => "VALIDATION_FAILED",
             Self::PathTraversalDetected => "PATH_TRAVERSAL_DETECTED",
@@ -97,8 +99,17 @@ pub enum AppError {
     #[error("Document not found: {0}")]
     DocumentNotFound(Uuid),
 
+    #[error("Job not found: {0}")]
+    JobNotFound(Uuid),
+
     #[error("Conflict: Indexing job is currently active for folder {0}")]
     JobConflict(Uuid),
+
+    #[error("Conflict: Folder with root path '{path}' is already registered (id: {id})")]
+    FolderConflict { path: String, id: Uuid },
+
+    #[error("Conflict: Job {id} is not in an active state (current status: {status})")]
+    JobNotActive { id: Uuid, status: String },
 
     #[error("Validation failed: {0}")]
     ValidationFailed(String),
@@ -135,8 +146,12 @@ impl AppError {
     /// Pemetaan HTTP status code per kategori error.
     pub fn status_code(&self) -> StatusCode {
         match self {
-            Self::FolderNotFound(_) | Self::DocumentNotFound(_) => StatusCode::NOT_FOUND,
-            Self::JobConflict(_) => StatusCode::CONFLICT,
+            Self::FolderNotFound(_) | Self::DocumentNotFound(_) | Self::JobNotFound(_) => {
+                StatusCode::NOT_FOUND
+            }
+            Self::JobConflict(_) | Self::JobNotActive { .. } | Self::FolderConflict { .. } => {
+                StatusCode::CONFLICT
+            }
             Self::ValidationFailed(_) | Self::ValidationErrors { .. } => {
                 StatusCode::UNPROCESSABLE_ENTITY
             }
@@ -153,7 +168,10 @@ impl AppError {
         match self {
             Self::FolderNotFound(_) => ErrorCode::FolderNotFound,
             Self::DocumentNotFound(_) => ErrorCode::DocumentNotFound,
-            Self::JobConflict(_) => ErrorCode::JobConflict,
+            Self::JobNotFound(_) => ErrorCode::JobNotFound,
+            Self::JobConflict(_) | Self::JobNotActive { .. } | Self::FolderConflict { .. } => {
+                ErrorCode::JobConflict
+            }
             Self::ValidationFailed(_) | Self::ValidationErrors { .. } => {
                 ErrorCode::ValidationFailed
             }
@@ -172,8 +190,15 @@ impl AppError {
         match self {
             Self::FolderNotFound(id) => format!("Folder with id '{id}' was not found."),
             Self::DocumentNotFound(id) => format!("Document with id '{id}' was not found."),
+            Self::JobNotFound(id) => format!("Job with id '{id}' was not found."),
             Self::JobConflict(id) => {
                 format!("Indexing job is currently active for folder '{id}'.")
+            }
+            Self::FolderConflict { path, .. } => {
+                format!("Folder with root path '{path}' is already registered.")
+            }
+            Self::JobNotActive { id, status } => {
+                format!("Job with id '{id}' is not active (current status: '{status}').")
             }
             Self::ValidationFailed(msg) => format!("Validation failed: {msg}"),
             Self::ValidationErrors { message, .. } => message.clone(),
@@ -199,6 +224,10 @@ impl AppError {
     pub fn client_details(&self) -> Option<serde_json::Value> {
         match self {
             Self::ValidationErrors { details, .. } => Some(details.clone()),
+            Self::FolderConflict { path, id } => Some(serde_json::json!({
+                "folder_id": id,
+                "root_path": path,
+            })),
             _ => None,
         }
     }
@@ -236,6 +265,12 @@ impl IntoResponse for AppError {
     }
 }
 
+impl From<sqlx::migrate::MigrateError> for AppError {
+    fn from(err: sqlx::migrate::MigrateError) -> Self {
+        Self::Database(sqlx::Error::Migrate(Box::new(err)))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -246,6 +281,7 @@ mod tests {
         let cases = [
             (ErrorCode::FolderNotFound, "FOLDER_NOT_FOUND"),
             (ErrorCode::DocumentNotFound, "DOCUMENT_NOT_FOUND"),
+            (ErrorCode::JobNotFound, "JOB_NOT_FOUND"),
             (ErrorCode::JobConflict, "JOB_CONFLICT"),
             (ErrorCode::ValidationFailed, "VALIDATION_FAILED"),
             (ErrorCode::PathTraversalDetected, "PATH_TRAVERSAL_DETECTED"),
@@ -293,9 +329,23 @@ mod tests {
         assert_eq!(not_found_doc.error_code(), ErrorCode::DocumentNotFound);
         assert!(not_found_doc.client_message().contains(&doc_id.to_string()));
 
+        let job_id = Uuid::new_v4();
+        let not_found_job = AppError::JobNotFound(job_id);
+        assert_eq!(not_found_job.status_code(), StatusCode::NOT_FOUND);
+        assert_eq!(not_found_job.error_code(), ErrorCode::JobNotFound);
+        assert!(not_found_job.client_message().contains(&job_id.to_string()));
+
         let conflict = AppError::JobConflict(folder_id);
         assert_eq!(conflict.status_code(), StatusCode::CONFLICT);
         assert_eq!(conflict.error_code(), ErrorCode::JobConflict);
+
+        let not_active = AppError::JobNotActive {
+            id: job_id,
+            status: "COMPLETED".to_string(),
+        };
+        assert_eq!(not_active.status_code(), StatusCode::CONFLICT);
+        assert_eq!(not_active.error_code(), ErrorCode::JobConflict);
+        assert!(not_active.client_message().contains("COMPLETED"));
 
         let val_err = AppError::ValidationFailed("page must be >= 1".into());
         assert_eq!(val_err.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
@@ -388,5 +438,15 @@ mod tests {
         assert_eq!(payload.code, ErrorCode::ValidationFailed);
         assert_eq!(payload.message, "Parameter input tidak valid.");
         assert_eq!(payload.details, Some(details));
+    }
+
+    #[test]
+    fn test_migrate_error_maps_to_database_unavailable() {
+        let migrate_err = sqlx::migrate::MigrateError::VersionMissing(1);
+        let app_err = AppError::from(migrate_err);
+
+        assert_eq!(app_err.status_code(), StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(app_err.error_code(), ErrorCode::DatabaseUnavailable);
+        assert_eq!(app_err.client_message(), "Database service unavailable.");
     }
 }
