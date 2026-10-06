@@ -320,6 +320,7 @@ impl SettingsRepository for InMemorySettingsRepository {
 #[derive(Default)]
 pub struct InMemorySearchRepository {
     documents: Arc<RwLock<HashMap<DocumentId, IndexedDocument>>>,
+    index_documents: Arc<RwLock<HashMap<String, HashMap<DocumentId, IndexedDocument>>>>,
     active_index: Arc<RwLock<Option<String>>>,
     indices: Arc<RwLock<HashSet<String>>>,
 }
@@ -332,6 +333,16 @@ impl SearchRepository for InMemorySearchRepository {
 
     async fn index_document(&self, doc: &IndexedDocument) -> Result<(), AppError> {
         self.documents.write().insert(doc.id, doc.clone());
+        let active = self
+            .active_index
+            .read()
+            .clone()
+            .unwrap_or_else(|| "lynx_documents_v1".to_string());
+        self.index_documents
+            .write()
+            .entry(active)
+            .or_default()
+            .insert(doc.id, doc.clone());
         Ok(())
     }
 
@@ -339,7 +350,12 @@ impl SearchRepository for InMemorySearchRepository {
         &self,
         docs: &[IndexedDocument],
     ) -> Result<BulkIndexReport, AppError> {
-        self.bulk_index_to_target("lynx_documents", docs).await
+        let active = self
+            .active_index
+            .read()
+            .clone()
+            .unwrap_or_else(|| self.search_alias().to_string());
+        self.bulk_index_to_target(&active, docs).await
     }
 
     async fn bulk_index_to_target(
@@ -347,11 +363,21 @@ impl SearchRepository for InMemorySearchRepository {
         target_index: &str,
         docs: &[IndexedDocument],
     ) -> Result<BulkIndexReport, AppError> {
-        let mut write = self.documents.write();
+        let mut idx_docs = self.index_documents.write();
+        let target_map = idx_docs.entry(target_index.to_string()).or_default();
         for doc in docs {
-            write.insert(doc.id, doc.clone());
+            target_map.insert(doc.id, doc.clone());
         }
         self.indices.write().insert(target_index.to_string());
+
+        let active = self.active_index.read().clone();
+        if target_index == self.search_alias() || active.as_deref() == Some(target_index) {
+            let mut write = self.documents.write();
+            for doc in docs {
+                write.insert(doc.id, doc.clone());
+            }
+        }
+
         Ok(BulkIndexReport {
             indexed: docs.len(),
             failed: 0,
@@ -361,6 +387,11 @@ impl SearchRepository for InMemorySearchRepository {
 
     async fn delete_document(&self, id: &DocumentId) -> Result<(), AppError> {
         self.documents.write().remove(id);
+        if let Some(ref active) = *self.active_index.read()
+            && let Some(map) = self.index_documents.write().get_mut(active)
+        {
+            map.remove(id);
+        }
         Ok(())
     }
 
@@ -368,15 +399,328 @@ impl SearchRepository for InMemorySearchRepository {
         let mut write = self.documents.write();
         let initial_len = write.len();
         write.retain(|_, doc| doc.folder_id != *folder_id);
-        Ok((initial_len - write.len()) as u64)
+        let removed = initial_len - write.len();
+        if let Some(ref active) = *self.active_index.read()
+            && let Some(map) = self.index_documents.write().get_mut(active)
+        {
+            map.retain(|_, doc| doc.folder_id != *folder_id);
+        }
+        Ok(removed as u64)
     }
 
     async fn search(
         &self,
-        _query_dsl: &serde_json::value::RawValue,
+        query_dsl: &serde_json::value::RawValue,
     ) -> Result<SearchRawResponse, AppError> {
+        let dsl: serde_json::Value = serde_json::from_str(query_dsl.get()).unwrap_or_default();
+        let docs = self.documents.read();
+
+        let from = dsl.get("from").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
+        let size = dsl.get("size").and_then(|v| v.as_u64()).unwrap_or(20) as usize;
+
+        // 1. Extract query clauses
+        let query_obj = dsl.get("query");
+        let is_match_all = query_obj.and_then(|q| q.get("match_all")).is_some();
+
+        let bool_obj = query_obj.and_then(|q| q.get("bool"));
+
+        // Extract filters
+        let mut filters: Vec<(String, String)> = Vec::new();
+        if let Some(filter_arr) = bool_obj
+            .and_then(|b| b.get("filter"))
+            .and_then(|f| f.as_array())
+        {
+            for f in filter_arr {
+                if let Some(term_map) = f.get("term").and_then(|t| t.as_object()) {
+                    for (k, v) in term_map {
+                        if let Some(v_str) = v.as_str() {
+                            filters.push((k.clone(), v_str.to_string()));
+                        }
+                    }
+                }
+            }
+        }
+
+        // Extract must queries: phrase vs free terms
+        let mut phrase_terms: Vec<String> = Vec::new();
+        let mut free_terms: Vec<String> = Vec::new();
+        if let Some(must_arr) = bool_obj
+            .and_then(|b| b.get("must"))
+            .and_then(|m| m.as_array())
+        {
+            for m in must_arr {
+                if let Some(mm) = m.get("multi_match") {
+                    let match_type = mm
+                        .get("type")
+                        .and_then(|t| t.as_str())
+                        .unwrap_or("best_fields");
+                    if let Some(q_str) = mm.get("query").and_then(|q| q.as_str()) {
+                        if match_type == "phrase" {
+                            phrase_terms.push(q_str.to_string());
+                        } else {
+                            for word in q_str.split_whitespace() {
+                                free_terms.push(word.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let has_highlight = dsl.get("highlight").is_some();
+
+        // 2. Score and filter documents
+        let mut scored_docs: Vec<(f32, IndexedDocument, HashMap<String, Vec<String>>)> = Vec::new();
+
+        for doc in docs.values() {
+            let mut filter_passed = true;
+            for (field, val) in &filters {
+                let matched = match field.as_str() {
+                    "tags" => doc.tags.iter().any(|t| t.eq_ignore_ascii_case(val)),
+                    "language" => doc
+                        .language
+                        .as_ref()
+                        .map(|l| l.as_str())
+                        .unwrap_or("")
+                        .eq_ignore_ascii_case(val),
+                    "type" => doc.doc_type.as_str().eq_ignore_ascii_case(val),
+                    "project" => doc
+                        .project
+                        .as_deref()
+                        .unwrap_or("")
+                        .eq_ignore_ascii_case(val),
+                    "extension" => doc
+                        .extension
+                        .as_deref()
+                        .unwrap_or("")
+                        .eq_ignore_ascii_case(val),
+                    _ => true,
+                };
+                if !matched {
+                    filter_passed = false;
+                    break;
+                }
+            }
+            if !filter_passed {
+                continue;
+            }
+
+            let mut score = 0.0f32;
+            let mut matched_query = false;
+
+            if is_match_all || (phrase_terms.is_empty() && free_terms.is_empty()) {
+                score = 1.0;
+                matched_query = true;
+            } else {
+                let title_lower = doc.title.to_lowercase();
+                let content_lower = doc.content.to_lowercase();
+                let tags_lower: Vec<String> = doc.tags.iter().map(|t| t.to_lowercase()).collect();
+
+                let mut phrases_matched = true;
+                for phrase in &phrase_terms {
+                    let phrase_low = phrase.to_lowercase();
+                    let in_title = title_lower.contains(&phrase_low);
+                    let in_content = content_lower.contains(&phrase_low);
+                    let in_tags = tags_lower.iter().any(|t| t.contains(&phrase_low));
+
+                    if in_title || in_content || in_tags {
+                        if in_title {
+                            score += 5.0;
+                        }
+                        if in_tags {
+                            score += 2.0;
+                        }
+                        if in_content {
+                            score += 1.0;
+                        }
+                    } else {
+                        phrases_matched = false;
+                        break;
+                    }
+                }
+
+                if !phrase_terms.is_empty() && !phrases_matched {
+                    continue;
+                }
+
+                if !free_terms.is_empty() {
+                    let mut terms_matched = 0;
+                    for term in &free_terms {
+                        let term_low = term.to_lowercase();
+                        let in_title = title_lower.contains(&term_low);
+                        let in_content = content_lower.contains(&term_low);
+                        let in_tags = tags_lower.iter().any(|t| t.contains(&term_low));
+
+                        if in_title || in_content || in_tags {
+                            terms_matched += 1;
+                            if in_title {
+                                score += 5.0;
+                            }
+                            if in_tags {
+                                score += 2.0;
+                            }
+                            if in_content {
+                                score += 1.0;
+                            }
+                        }
+                    }
+                    if terms_matched > 0 {
+                        matched_query = true;
+                    }
+                } else if phrases_matched {
+                    matched_query = true;
+                }
+            }
+
+            if !matched_query {
+                continue;
+            }
+
+            let mut highlights: HashMap<String, Vec<String>> = HashMap::new();
+            if has_highlight && (!phrase_terms.is_empty() || !free_terms.is_empty()) {
+                let mut all_match_words = phrase_terms.clone();
+                all_match_words.extend(free_terms.clone());
+
+                let mut content_snippets = Vec::new();
+                for word in &all_match_words {
+                    if word.is_empty() {
+                        continue;
+                    }
+                    let word_low = word.to_lowercase();
+                    let content = &doc.content;
+                    let content_low = content.to_lowercase();
+
+                    let mut search_from = 0;
+                    while let Some(idx) = content_low[search_from..].find(&word_low) {
+                        let abs_idx = search_from + idx;
+                        let line_start = content[..abs_idx].rfind('\n').map(|p| p + 1).unwrap_or(0);
+                        let line_end = content[abs_idx..]
+                            .find('\n')
+                            .map(|p| abs_idx + p)
+                            .unwrap_or(content.len());
+                        let line_snippet = &content[line_start..line_end];
+
+                        let match_in_line = abs_idx - line_start;
+                        let prefix = &line_snippet[..match_in_line];
+                        let matched_orig = &line_snippet[match_in_line..match_in_line + word.len()];
+                        let suffix = &line_snippet[match_in_line + word.len()..];
+                        let snippet = format!("{prefix}<em>{matched_orig}</em>{suffix}");
+
+                        if !content_snippets.contains(&snippet) {
+                            content_snippets.push(snippet);
+                        }
+                        search_from = abs_idx + word.len();
+                        if content_snippets.len() >= 5 {
+                            break;
+                        }
+                    }
+                }
+                if !content_snippets.is_empty() {
+                    highlights.insert("content".to_string(), content_snippets);
+                }
+
+                let mut title_snippets = Vec::new();
+                for word in &all_match_words {
+                    if word.is_empty() {
+                        continue;
+                    }
+                    let word_low = word.to_lowercase();
+                    let title = &doc.title;
+                    let title_low = title.to_lowercase();
+                    if let Some(idx) = title_low.find(&word_low) {
+                        let prefix = &title[..idx];
+                        let matched_orig = &title[idx..idx + word.len()];
+                        let suffix = &title[idx + word.len()..];
+                        let snippet = format!("{prefix}<em>{matched_orig}</em>{suffix}");
+                        if !title_snippets.contains(&snippet) {
+                            title_snippets.push(snippet);
+                        }
+                    }
+                }
+                if !title_snippets.is_empty() {
+                    highlights.insert("title".to_string(), title_snippets);
+                }
+            }
+
+            scored_docs.push((score, doc.clone(), highlights));
+        }
+
+        // 3. Sorting
+        let sort_val = dsl.get("sort");
+        if let Some(sort_arr) = sort_val.and_then(|s| s.as_array()) {
+            let mut sort_by_size = false;
+            let mut sort_by_date = false;
+            let mut is_desc = true;
+
+            for item in sort_arr {
+                if let Some(size_obj) = item.get("file_size_bytes") {
+                    sort_by_size = true;
+                    is_desc = size_obj.get("order").and_then(|o| o.as_str()) != Some("asc");
+                    break;
+                }
+                if let Some(date_obj) = item.get("modified_at") {
+                    sort_by_date = true;
+                    is_desc = date_obj.get("order").and_then(|o| o.as_str()) != Some("asc");
+                    break;
+                }
+            }
+
+            if sort_by_size {
+                scored_docs.sort_by(|a, b| {
+                    if is_desc {
+                        b.1.file_size_bytes.cmp(&a.1.file_size_bytes)
+                    } else {
+                        a.1.file_size_bytes.cmp(&b.1.file_size_bytes)
+                    }
+                });
+            } else if sort_by_date {
+                scored_docs.sort_by(|a, b| {
+                    if is_desc {
+                        b.1.modified_at.cmp(&a.1.modified_at)
+                    } else {
+                        a.1.modified_at.cmp(&b.1.modified_at)
+                    }
+                });
+            } else {
+                scored_docs
+                    .sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+            }
+        } else {
+            scored_docs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+        }
+
+        let total = scored_docs.len();
+
+        // 4. Pagination
+        let paged: Vec<serde_json::Value> = scored_docs
+            .into_iter()
+            .skip(from)
+            .take(size)
+            .map(|(score, doc, hl)| {
+                let mut hit_obj = serde_json::json!({
+                    "_id": doc.id.to_string(),
+                    "_score": score,
+                    "_source": serde_json::to_value(&doc).unwrap_or_default()
+                });
+                if !hl.is_empty() {
+                    hit_obj["highlight"] = serde_json::to_value(&hl).unwrap_or_default();
+                }
+                hit_obj
+            })
+            .collect();
+
+        let json_str = serde_json::json!({
+            "took": 1,
+            "hits": {
+                "total": { "value": total },
+                "hits": paged
+            }
+        })
+        .to_string();
+
         Ok(SearchRawResponse {
-            raw_json: "{\"hits\":{\"total\":{\"value\":0},\"hits\":[]}}".into(),
+            raw_json: json_str,
+            took_ms: 1,
         })
     }
 
@@ -413,6 +757,10 @@ impl SearchRepository for InMemorySearchRepository {
             let initial = "lynx_documents_v1".to_string();
             *active = Some(initial.clone());
             self.indices.write().insert(initial.clone());
+            self.index_documents
+                .write()
+                .entry(initial.clone())
+                .or_default();
             Ok(initial)
         }
     }
@@ -424,6 +772,10 @@ impl SearchRepository for InMemorySearchRepository {
     async fn create_versioned_index(&self, version: u32) -> Result<String, AppError> {
         let name = format!("lynx_documents_v{version}");
         self.indices.write().insert(name.clone());
+        self.index_documents
+            .write()
+            .entry(name.clone())
+            .or_default();
         Ok(name)
     }
 
@@ -439,14 +791,23 @@ impl SearchRepository for InMemorySearchRepository {
     ) -> Result<(), AppError> {
         self.indices.write().insert(new_index.to_string());
         *self.active_index.write() = Some(new_index.to_string());
+        let target_docs = self
+            .index_documents
+            .read()
+            .get(new_index)
+            .cloned()
+            .unwrap_or_default();
+        *self.documents.write() = target_docs;
         Ok(())
     }
 
     async fn delete_index(&self, index_name: &str) -> Result<(), AppError> {
         self.indices.write().remove(index_name);
+        self.index_documents.write().remove(index_name);
         let mut active = self.active_index.write();
         if active.as_deref() == Some(index_name) {
             *active = None;
+            self.documents.write().clear();
         }
         Ok(())
     }
