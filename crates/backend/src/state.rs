@@ -157,8 +157,7 @@ impl AppState {
                 config.elasticsearch_index_alias.clone(),
             ),
         );
-        let mut repositories = Repositories::in_memory_with_settings(initial_settings.clone());
-        repositories.search = search_repo;
+        let repositories = Repositories::from_postgres(db_pool.clone(), search_repo);
         let job_tracker = Arc::new(JobTracker::new());
         let (worker_sender, worker_receiver) = mpsc::channel(DEFAULT_WORKER_CHANNEL_CAPACITY);
         let file_io_semaphore = Arc::new(Semaphore::new(config.file_read_concurrency_limit));
@@ -200,7 +199,31 @@ impl AppState {
             file_read_concurrency_limit: 50,
         };
 
-        let (state, rx) = Self::from_config(config).expect("Failed to initialize test state");
+        let db_pool =
+            crate::infrastructure::postgres::connection::create_pg_pool_lazy(&config.database_url)
+                .expect("Failed to initialize test lazy pg pool");
+        let es_client =
+            crate::infrastructure::elasticsearch::create_es_client(&config.elasticsearch_url)
+                .expect("Failed to initialize test es client");
+        let initial_settings = AppSettings::from_config(&config);
+        let repositories = Repositories::in_memory_with_settings(initial_settings.clone());
+        let job_tracker = Arc::new(JobTracker::new());
+        let (worker_sender, rx) = mpsc::channel(DEFAULT_WORKER_CHANNEL_CAPACITY);
+        let file_io_semaphore = Arc::new(Semaphore::new(config.file_read_concurrency_limit));
+        let config_arc = Arc::new(config);
+        let settings_arc = Arc::new(RwLock::new(initial_settings));
+
+        let state = Self::new(
+            db_pool,
+            es_client,
+            repositories,
+            job_tracker,
+            worker_sender,
+            file_io_semaphore,
+            config_arc,
+            settings_arc,
+        );
+
         let recorder = Arc::new(crate::domain::events::RecordingDomainEventHandler::new());
         state
             .orchestrator

@@ -216,7 +216,6 @@ impl IndexOrchestrator {
             } else {
                 None
             };
-
             if let Some(folder_id) = folder_id {
                 self.job_tracker.release_folder_lock(&folder_id);
                 let _ = self
@@ -714,6 +713,9 @@ impl IndexOrchestrator {
                 break;
             }
 
+            // Yield execution to Tokio runtime to guarantee search availability and prevent thread monopolization
+            tokio::task::yield_now().await;
+
             let abs_path = folder.path.join(&target.relative_path);
             let norm_rel_path = normalize_path_str(&target.relative_path);
 
@@ -867,6 +869,7 @@ impl IndexOrchestrator {
                         .await?;
                         docs_to_index.clear();
                         registry_to_upsert.clear();
+                        tokio::task::yield_now().await;
                     }
                 }
             }
@@ -1028,10 +1031,16 @@ impl IndexOrchestrator {
         tracing::info!(job_id = %job_id, target_index = %target_index, "Executing index rebuild");
 
         let alias = self.repositories.search.search_alias();
-        let target_version = crate::infrastructure::elasticsearch::parse_index_version(&target_index, alias)
-            .unwrap_or(1);
+        let target_version =
+            crate::infrastructure::elasticsearch::parse_index_version(&target_index, alias)
+                .unwrap_or(1);
 
-        let created_index = match self.repositories.search.create_versioned_index(target_version).await {
+        let created_index = match self
+            .repositories
+            .search
+            .create_versioned_index(target_version)
+            .await
+        {
             Ok(idx) => idx,
             Err(err) => {
                 let err_msg = format!("Failed to create physical index '{target_index}': {err}");
@@ -1043,14 +1052,24 @@ impl IndexOrchestrator {
             }
         };
 
-        let settings = self.repositories.settings.get_settings().await.unwrap_or_default();
+        let settings = self
+            .repositories
+            .settings
+            .get_settings()
+            .await
+            .unwrap_or_default();
         let read_options = ReadOptions::new(Some(settings.max_file_size_bytes));
         let extract_options = ExtractOptions {
             max_file_size_bytes: Some(settings.max_file_size_bytes),
         };
         let extractor = DocumentExtractor::new();
 
-        let folders = self.repositories.folder.list_folders().await.unwrap_or_default();
+        let folders = self
+            .repositories
+            .folder
+            .list_folders()
+            .await
+            .unwrap_or_default();
         let folder_map: std::collections::HashMap<FolderId, Folder> =
             folders.into_iter().map(|f| (f.id, f)).collect();
 
@@ -1086,6 +1105,9 @@ impl IndexOrchestrator {
                 tracing::info!(job_id = %job_id, "Rebuild cancelled during streaming");
                 break;
             }
+
+            // Yield execution to Tokio runtime during rebuild streaming
+            tokio::task::yield_now().await;
 
             let folder = match folder_map.get(&entry.folder_id) {
                 Some(f) => f,
@@ -1153,10 +1175,10 @@ impl IndexOrchestrator {
                             let _ = reporter.record_failed(report.failed as i32).await;
                         }
                         docs_to_index.clear();
+                        tokio::task::yield_now().await;
                     }
                     Err(err) => {
-                        failure_reason =
-                            format!("Bulk index error into '{created_index}': {err}");
+                        failure_reason = format!("Bulk index error into '{created_index}': {err}");
                         rebuild_failed = true;
                         break;
                     }
@@ -1179,8 +1201,7 @@ impl IndexOrchestrator {
                     docs_to_index.clear();
                 }
                 Err(err) => {
-                    failure_reason =
-                        format!("Bulk index error into '{created_index}': {err}");
+                    failure_reason = format!("Bulk index error into '{created_index}': {err}");
                     rebuild_failed = true;
                 }
             }
