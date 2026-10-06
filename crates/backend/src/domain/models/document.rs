@@ -36,9 +36,33 @@ pub struct BulkIndexReport {
     pub errors: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SearchRawResponse {
     pub raw_json: String,
+    #[serde(default)]
+    pub took_ms: u64,
+}
+
+impl SearchRawResponse {
+    pub fn new(raw_json: impl Into<String>, took_ms: u64) -> Self {
+        Self {
+            raw_json: raw_json.into(),
+            took_ms,
+        }
+    }
+
+    pub fn from_raw(raw_json: impl Into<String>) -> Self {
+        Self {
+            raw_json: raw_json.into(),
+            took_ms: 0,
+        }
+    }
+
+    pub fn parse_execution_result(
+        &self,
+    ) -> Result<super::search::SearchExecutionResult, crate::error::AppError> {
+        super::search::parse_search_execution_result(&self.raw_json, self.took_ms)
+    }
 }
 
 #[cfg(test)]
