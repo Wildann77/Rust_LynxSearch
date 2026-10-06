@@ -135,9 +135,7 @@ pub async fn cancel_job(
     ))
 }
 
-pub async fn rebuild_index(
-    State(state): State<AppState>,
-) -> Result<impl IntoResponse, AppError> {
+pub async fn rebuild_index(State(state): State<AppState>) -> Result<impl IntoResponse, AppError> {
     let (job_id, target_index) = state.orchestrator.submit_rebuild_index().await?;
 
     Ok((
