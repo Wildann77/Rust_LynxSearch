@@ -2,7 +2,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::json;
 use tower::ServiceExt;
-use uuid::Uuid;
 
 #[tokio::test]
 async fn test_health_routes() {
@@ -131,6 +130,11 @@ async fn test_index_and_job_routes() {
         .unwrap();
     let res = app.clone().oneshot(req).await.unwrap();
     assert_eq!(res.status(), StatusCode::ACCEPTED);
+    let body_bytes = axum::body::to_bytes(res.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let json_body: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap();
+    let folder_job_id = json_body["job_id"].as_str().unwrap().to_string();
 
     // 10. POST /api/index (200 OK)
     let temp_dir = tempfile::tempdir().unwrap();
@@ -161,14 +165,8 @@ async fn test_index_and_job_routes() {
     assert_eq!(res.status(), StatusCode::OK);
 
     // 11. GET /api/index/jobs/{id}
-    let job_id = Uuid::new_v4();
-    state.job_tracker.register_job(
-        backend::domain::models::JobId::from_uuid(job_id),
-        None,
-        tokio_util::sync::CancellationToken::new(),
-    );
     let req = Request::builder()
-        .uri(format!("/api/index/jobs/{job_id}"))
+        .uri(format!("/api/index/jobs/{folder_job_id}"))
         .method("GET")
         .body(Body::empty())
         .unwrap();
@@ -177,7 +175,7 @@ async fn test_index_and_job_routes() {
 
     // 12. POST /api/index/jobs/{id}/cancel
     let req = Request::builder()
-        .uri(format!("/api/index/jobs/{job_id}/cancel"))
+        .uri(format!("/api/index/jobs/{folder_job_id}/cancel"))
         .method("POST")
         .body(Body::empty())
         .unwrap();

@@ -870,6 +870,11 @@ async fn test_search_repository_initial_mapping_and_alias_lifecycle() {
         search_result.raw_json
     );
 
+    let parsed = search_result
+        .parse_execution_result()
+        .expect("Search response must parse into SearchExecutionResult");
+    assert_eq!(parsed.took_ms, search_result.took_ms);
+
     // Cleanup physical indices
     let _ = repo.delete_index(&initial_index).await;
     let _ = repo.delete_index(&index_v2).await;
