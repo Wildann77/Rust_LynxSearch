@@ -109,7 +109,8 @@ impl DocumentRegistryRepository for PgDocumentRegistryRepository {
             let status_str: String = row.try_get("status").map_err(AppError::Database)?;
             let status = DocumentStatus::from_str(&status_str)
                 .map_err(|e| AppError::Internal(format!("Invalid document status in DB: {e}")))?;
-            let folder_id_uuid: uuid::Uuid = row.try_get("folder_id").map_err(AppError::Database)?;
+            let folder_id_uuid: uuid::Uuid =
+                row.try_get("folder_id").map_err(AppError::Database)?;
             let content_hash: Option<String> =
                 row.try_get("content_hash").map_err(AppError::Database)?;
             let status_reason: Option<String> =

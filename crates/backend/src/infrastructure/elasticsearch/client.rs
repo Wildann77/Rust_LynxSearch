@@ -334,15 +334,23 @@ impl SearchRepository for EsSearchRepository {
         &self,
         query_dsl: &serde_json::value::RawValue,
     ) -> Result<SearchRawResponse, AppError> {
-        let response = self
+        let start = std::time::Instant::now();
+        let response = match self
             .client
             .search(SearchParts::Index(&[&self.search_target]))
             .body(query_dsl)
             .send()
             .await
-            .map_err(|e| {
-                AppError::SearchEngine(format!("Elasticsearch search request failed: {e}"))
-            })?;
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                return Err(AppError::SearchEngine(format!(
+                    "Elasticsearch connection or network failure: {e}"
+                )));
+            }
+        };
+
+        let took_ms = start.elapsed().as_millis() as u64;
 
         if !response.status_code().is_success() {
             let status = response.status_code();
@@ -350,8 +358,21 @@ impl SearchRepository for EsSearchRepository {
                 .text()
                 .await
                 .unwrap_or_else(|_| "<unreadable error body>".to_string());
-            return Err(AppError::SearchEngine(format!(
-                "Elasticsearch search returned error status {status}: {body}"
+
+            if status.as_u16() == 400 {
+                return Err(AppError::InvalidQuery(format!(
+                    "Malformed Elasticsearch query DSL (400 Bad Request): {body}"
+                )));
+            }
+
+            if status.is_server_error() {
+                return Err(AppError::SearchEngine(format!(
+                    "Elasticsearch server error {status}: {body}"
+                )));
+            }
+
+            return Err(AppError::Internal(format!(
+                "Elasticsearch search returned unexpected status {status}: {body}"
             )));
         }
 
@@ -359,7 +380,7 @@ impl SearchRepository for EsSearchRepository {
             AppError::SearchEngine(format!("Failed to read search response body: {e}"))
         })?;
 
-        Ok(SearchRawResponse { raw_json })
+        Ok(SearchRawResponse { raw_json, took_ms })
     }
 
     async fn suggest(&self, _prefix: &str, _limit: usize) -> Result<Vec<String>, AppError> {
@@ -554,6 +575,10 @@ impl SearchRepository for EsSearchRepository {
             .map_err(|e| {
                 AppError::SearchEngine(format!("Failed to fetch alias '{alias}' details: {e}"))
             })?;
+
+        if response.status_code().as_u16() == 404 {
+            return Ok(Vec::new());
+        }
 
         if !response.status_code().is_success() {
             let status = response.status_code();
@@ -847,6 +872,24 @@ mod tests {
         let result = repo
             .rebuild_index_with_alias("lynx_documents_v2", "lynx_documents")
             .await;
+
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err.status_code(), StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(err.error_code(), ErrorCode::SearchEngineUnavailable);
+    }
+
+    #[tokio::test]
+    async fn test_search_unreachable_server_fails_service_unavailable() {
+        let client =
+            create_es_client_with_timeout("http://127.0.0.1:1", Duration::from_millis(500))
+                .expect("Client creation succeeds lazily");
+
+        let repo = EsSearchRepository::default_with_client(client);
+        let dsl =
+            serde_json::value::RawValue::from_string("{\"query\":{\"match_all\":{}}}".to_string())
+                .unwrap();
+        let result = repo.search(&dsl).await;
 
         assert!(result.is_err());
         let err = result.unwrap_err();
