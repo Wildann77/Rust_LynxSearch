@@ -30,9 +30,42 @@ export default defineConfig({
   },
   envDir: '../../',
   clearScreen: false,
+  build: {
+    target: 'baseline-widely-available',
+    sourcemap: false,
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks(id: string) {
+          if (id.includes('node_modules')) {
+            if (/[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id)) {
+              return 'vendor-react';
+            }
+            if (/[\\/]node_modules[\\/]@tanstack[\\/]/.test(id)) {
+              return 'vendor-tanstack';
+            }
+            if (
+              /[\\/]node_modules[\\/](@radix-ui|lucide-react|sonner)[\\/]/.test(id)
+            ) {
+              return 'vendor-ui';
+            }
+            if (
+              /[\\/]node_modules[\\/](react-markdown|shiki|remark-gfm|micromark)[\\/]/.test(id)
+            ) {
+              return 'vendor-markdown';
+            }
+          }
+        },
+      },
+    },
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom', '@tanstack/react-query', '@tanstack/react-virtual', 'zustand', 'zod'],
+  },
   server: {
     port: 5173,
     strictPort: true,
     host: '127.0.0.1',
+    hmr: { overlay: true },
   },
 });
