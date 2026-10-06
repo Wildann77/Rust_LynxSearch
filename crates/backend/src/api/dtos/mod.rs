@@ -15,9 +15,13 @@ pub use health::{
     ComponentHealthDto, HealthSummaryResponseDto, LivenessResponseDto, ReadinessResponseDto,
 };
 pub use index::{
-    IndexDocumentRequestDto, IndexDocumentResponseDto, JobStatusResponseDto, RebuildIndexResponseDto,
+    IndexDocumentRequestDto, IndexDocumentResponseDto, JobStatusResponseDto,
+    RebuildIndexResponseDto,
 };
-pub use search::{SearchRequestDto, SuggestRequestDto};
+pub use search::{
+    FacetBucketDto, SearchFacetsDto, SearchRequestDto, SearchResponseDto, SearchResultItemDto,
+    SuggestRequestDto,
+};
 pub use settings::{UpdateBm25WeightsDto, UpdateSettingsRequestDto};
 
 pub use crate::error::{ErrorCode, ErrorResponse};

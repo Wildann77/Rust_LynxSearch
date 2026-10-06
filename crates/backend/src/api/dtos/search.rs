@@ -1,7 +1,10 @@
 use std::borrow::Cow;
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationError};
+
+use crate::domain::models::{DocumentId, DocumentType, Language, SearchHighlight};
 
 /// Custom validator untuk memastikan panjang query setelah normalisasi (trim) maksimal 500 karakter.
 pub fn validate_search_query(q: &str) -> Result<(), ValidationError> {
@@ -75,6 +78,67 @@ impl SuggestRequestDto {
     pub fn limit(&self) -> u32 {
         self.limit.unwrap_or(5)
     }
+}
+
+/// Satu item hasil pencarian dokumen yang disajikan ke client UI.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SearchResultItemDto {
+    pub id: DocumentId,
+    pub title: String,
+    pub relative_path: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub project: Option<String>,
+    #[serde(rename = "type")]
+    pub doc_type: DocumentType,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub language: Option<Language>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tags: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub highlights: Vec<SearchHighlight>,
+    pub score: f32,
+    #[serde(rename = "file_size", alias = "file_size_bytes")]
+    pub file_size: u64,
+    #[serde(
+        rename = "updated_at",
+        alias = "modified_at",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub updated_at: Option<DateTime<Utc>>,
+}
+
+/// Bucket agregasi facet kategori pencarian.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FacetBucketDto {
+    pub key: String,
+    pub doc_count: u64,
+}
+
+/// Kelompok facet pencarian (types, languages, tags, projects).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SearchFacetsDto {
+    #[serde(default)]
+    pub types: Vec<FacetBucketDto>,
+    #[serde(default)]
+    pub languages: Vec<FacetBucketDto>,
+    #[serde(default)]
+    pub tags: Vec<FacetBucketDto>,
+    #[serde(default)]
+    pub projects: Vec<FacetBucketDto>,
+}
+
+/// Payload respons lengkap untuk endpoint `GET /api/search`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SearchResponseDto {
+    pub query: String,
+    pub page: u32,
+    pub size: u32,
+    pub total: u64,
+    pub took_ms: u64,
+    pub items: Vec<SearchResultItemDto>,
+    pub results: Vec<SearchResultItemDto>,
+    pub facets: SearchFacetsDto,
+    pub warnings: Vec<String>,
 }
 
 #[cfg(test)]
