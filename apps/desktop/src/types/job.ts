@@ -44,3 +44,10 @@ export const JobStatusResponseSchema = z.object({
   finished_at: z.string().nullable().optional(),
 });
 export type JobStatusResponse = z.infer<typeof JobStatusResponseSchema>;
+
+export const CancelJobResponseSchema = z.object({
+  job_id: z.string().uuid(),
+  status: z.string(),
+  message: z.string(),
+});
+export type CancelJobResponse = z.infer<typeof CancelJobResponseSchema>;
