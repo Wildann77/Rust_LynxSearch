@@ -7,7 +7,14 @@ export function useHealthQuery(options: { refetchInterval?: number | false } = {
   return useQuery<HealthSummaryResponse>({
     queryKey: queryKeys.health.summary(),
     queryFn: ({ signal }) => fetchHealth(signal),
-    refetchInterval: options.refetchInterval ?? 10_000,
+    refetchInterval: (query) => {
+      if (options.refetchInterval === false) return false;
+      // When in error/offline, poll aggressively every 2000ms so reconnection is near-instant
+      const isOffline = query.state.status === 'error';
+      return isOffline ? 2_000 : (options.refetchInterval ?? 10_000);
+    },
+    refetchOnWindowFocus: true,
+    refetchIntervalInBackground: true,
     retry: 1,
   });
 }
