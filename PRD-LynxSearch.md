@@ -66,7 +66,7 @@ Pembaruan index dilakukan **manual dan inkremental**: developer menekan Import a
 21. Sebagai developer, saya ingin menghapus satu dokumen dari index tanpa menghapus file aslinya, agar saya bisa menyingkirkan hasil yang mengganggu dan dokumen tersebut tidak muncul kembali saat Re-scan berikutnya.
 22. Sebagai developer, saya ingin membangun ulang seluruh index Elasticsearch dari metadata dan file, agar saya bisa pulih dari kerusakan index atau setelah mengubah mapping/analyzer.
 23. Sebagai developer, saya ingin menjalankan Re-scan dua kali berturut-turut tanpa efek samping (idempoten), agar saya tidak takut menekannya berulang kali.
-24. Sebagai developer, saya ingin hanya satu job indexing aktif per folder pada satu waktu, agar tidak terjadi balapan yang merusak data.
+24. Sebagai developer, saya ingin hanya satu job indexing aktif per folder pada satu waktu (dengan dukungan hingga 2 folder berbeda dipindai secara bersamaan), agar tidak terjadi balapan yang merusak data dan antrean tetap responsif.
 
 ### D. Pencarian dasar
 
