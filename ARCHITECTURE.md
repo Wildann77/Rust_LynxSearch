@@ -690,6 +690,21 @@ flowchart TD
 
 ---
 
+### 3.5 Multi-Folder Concurrency & Worker Queue Architecture
+
+Untuk mencegah antrean pemindaian terblokir saat satu folder berukuran besar sedang dipindai, worker queue menerapkan **Multi-Folder Concurrency Terkendali**:
+
+1. **Konkurensi Multi-Folder Terbatas (Maksimal 2 Folder Bersamaan)**:
+   - Worker pool membatasi pemindaian hingga 2 folder berbeda secara paralel menggunakan `tokio::sync::Semaphore` (`MAX_CONCURRENT_FOLDER_SCANS = 2`).
+   - Setiap command `WorkerCommand::IndexFolder` dieksekusi dalam Tokio task terpisah yang mengakuisisi permit konkurensi.
+2. **Eksklusivitas Kunci per Folder**:
+   - Aggregate `JobTracker` secara mutlak mengunci folder (`try_lock_folder(&folder_id)`). Folder yang sama **DILARANG** dipindai lebih dari satu kali secara bersamaan (mencegah *race condition* dan data korup).
+   - Folder ke-3 (atau folder yang terkunci) tetap mengantre di channel MPSC / berstatus `PENDING` di database sampai slot pemindaian tersedia.
+3. **Throttling I/O Global**:
+   - Seluruh folder task yang aktif berbagi `Arc<tokio::sync::Semaphore>` (`file_io_semaphore`, default 50 permits) untuk pembacaan berkas & hashing disk, mencegah lonjakan *disk thrashing* atau OOM.
+
+---
+
 ## 4. Desain Database & Skema Penyimpanan
 
 ### 4.1 PostgreSQL 18.6 Schema (Metadata & Registry)
@@ -1319,17 +1334,28 @@ Frontend dirancang mengikuti metodologi **Frontend Engineering**, pedoman **Reac
     "shell:default",
     "shell:allow-open",
     "opener:default",
-    "window-state:default"
+    {
+      "identifier": "opener:allow-open-path",
+      "allow": [{ "path": "**" }]
+    },
+    "opener:allow-reveal-item-in-dir",
+    "window-state:default",
+    "clipboard-manager:default",
+    "clipboard-manager:allow-write-text",
+    "clipboard-manager:allow-read-text"
   ]
 }
 ```
 
-#### 3. Native Plugins Integration
-- **`@tauri-apps/plugin-dialog`**: Membuka native directory picker tanpa intervensi backend.
+#### 3. Native Plugins & Desktop Bridge Integration
+- **`@tauri-apps/plugin-dialog` & Native `pick_folder` Command**: Membuka native directory picker secara non-blocking (async via oneshot channel callback) dengan window parenting langsung ke `main` window (`builder.set_parent(&window)`) sehingga modal file picker selalu muncul di atas aplikasi utama tanpa tertutup atau memicu deadlock event loop GTK / Mutter; ukuran dialog GTK di-clamp otomatis ke `(900, 560)` dan saat dibatalkan mengembalikan `null` seketika tanpa dialog kedua.
+- **Window Focus on Click & Stacking**: Integrasi native command `focus_window` (`unminimize`, `show`, `set_focus`), penegakan `set_always_on_top(false)`, resolusi konflik GNOME Forge tiling (`float-always-on-top-enabled=false`), serta capture listener `mousedown` memastikan klik pada jendela aplikasi langsung menaikkannya ke foreground, sementara jendela aplikasi lain (IDE, terminal) tetap dapat menutupinya saat diklik (perilaku standar desktop).
 - **`@tauri-apps/plugin-shell`**: Eksekusi perintah command line atau spawn proses editor spesifik.
-- **`@tauri-apps/plugin-opener`**: Membuka file atau reveal folder di sistem file manager / default viewer native OS (US #6 & #7).
+- **`@tauri-apps/plugin-opener` & `open_file_in_editor` Command**: Membuka file atau reveal folder di sistem file manager / default viewer native OS (US #6 & #7) melalui direct Tauri invoke command dengan fallback plugin.
 - **`@tauri-apps/plugin-window-state`**: Menyimpan ukuran dan posisi jendela saat ditutup dan memulihkannya saat aplikasi dibuka kembali.
-- **`@tauri-apps/plugin-single-instance`**: Memastikan hanya ada satu proses jendela desktop yang berjalan; otomatis memfokuskan jendela aktif jika aplikasi dijalankan ulang.
+- **`@tauri-apps/plugin-single-instance`**: Memastikan hanya ada satu proses jendela desktop yang berjalan; otomatis memfokuskan jendela aktif jika aplikasi dijalankan ulang dengan enforcement `set_always_on_top(false)`.
+- **Adaptive Backend Reconnect**: `useHealthQuery` beralih ke interval adaptif agresif 2.000ms ketika backend offline, dengan revalidasi fokus jendela dan dukungan click-to-retry instan pada badge status TopBar.
+- **Webview Trackpad Gesture Safety & Keyboard Zoom**: Blokir total touchpad pinch gesture pada level widget GTK via `webview.connect_event` (intercept `gdk::EventType::TouchpadPinch` -> `glib::Propagation::Stop`) serta `connect_zoom_level_notify` guard dan JS capture event listeners guna mencegah glitch layout, didukung pengatur zoom keyboard desktop native via command `set_desktop_zoom` (`Ctrl + +`, `Ctrl + -`, `Ctrl + 0`).
 
 ---
 
@@ -1342,7 +1368,7 @@ LynxSearch mengadopsi tema **OpenAI Dark Minimalist** dengan aksen ChatGPT Teal 
 
 Arsitektur integrasi desktop layer tetap mempertahankan:
 - **`@tauri-apps/api`**: Akses core API Tauri untuk manipulasi ukuran window, custom titlebar draggable area (`data-tauri-drag-region`), dan lifecycle runtime.
-- **`@tauri-apps/plugin-clipboard-manager`**: Menyalin path file dokumen langsung ke clipboard sistem operasi (`writeText(absolutePath)`) dengan shortcut keyboard `Cmd/Ctrl + Shift + C`, tanpa memicu browser clipboard permission warning.
+- **`@tauri-apps/plugin-clipboard-manager`**: Menyalin isi dokumen yang sedang dipratinjau langsung ke clipboard sistem operasi (`writeText(doc.content)`) dengan shortcut keyboard `Cmd/Ctrl + Shift + C`, serta mendukung penyalinan path file dengan mengklik teks path di header preview, tanpa memicu browser clipboard permission warning.
 
 ---
 
@@ -1371,19 +1397,25 @@ export default defineConfig({
     chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom'],
-          'vendor-tanstack': ['@tanstack/react-query', '@tanstack/react-virtual'],
-          'vendor-ui': [
-            '@radix-ui/react-dialog',
-            '@radix-ui/react-popover',
-            '@radix-ui/react-scroll-area',
-            '@radix-ui/react-tooltip',
-            '@radix-ui/react-slider',
-            'lucide-react',
-            'sonner',
-          ],
-          'vendor-markdown': ['react-markdown', 'shiki'],
+        manualChunks(id: string) {
+          if (id.includes('node_modules')) {
+            if (/[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id)) {
+              return 'vendor-react';
+            }
+            if (/[\\/]node_modules[\\/]@tanstack[\\/]/.test(id)) {
+              return 'vendor-tanstack';
+            }
+            if (
+              /[\\/]node_modules[\\/](@radix-ui|lucide-react|sonner)[\\/]/.test(id)
+            ) {
+              return 'vendor-ui';
+            }
+            if (
+              /[\\/]node_modules[\\/](react-markdown|shiki|remark-gfm|micromark)[\\/]/.test(id)
+            ) {
+              return 'vendor-markdown';
+            }
+          }
         },
       },
     },
