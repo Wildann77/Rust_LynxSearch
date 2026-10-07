@@ -23,9 +23,11 @@ import {
 } from '../types/folder';
 import {
   JobStatusResponseSchema,
+  CancelJobResponseSchema,
   RebuildIndexResponseSchema,
   IndexDocumentResponseSchema,
   type JobStatusResponse,
+  type CancelJobResponse,
   type RebuildIndexResponse,
   type IndexDocumentResponse,
   type IndexDocumentRequest,
@@ -132,9 +134,9 @@ export async function fetchJob(
 export async function cancelJob(
   jobId: string,
   signal?: AbortSignal,
-): Promise<JobStatusResponse> {
+): Promise<CancelJobResponse> {
   return apiClient.post(`/api/index/jobs/${jobId}/cancel`, undefined, {
-    schema: JobStatusResponseSchema,
+    schema: CancelJobResponseSchema,
     signal,
   });
 }
