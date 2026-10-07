@@ -196,13 +196,26 @@ async fn test_index_and_job_routes() {
 async fn test_document_routes() {
     let (state, _rx) = backend::AppState::test_state();
     let app = backend::create_router_with_state(state.clone());
-    let folder_id = backend::domain::models::FolderId::new();
-    let doc_id = backend::domain::models::DocumentId::from_relative_path(folder_id, "src/main.rs");
+
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path();
+    let file_path = root.join("main.rs");
+    std::fs::write(&file_path, "fn main() { println!(\"hello\"); }").unwrap();
+
+    let folder = backend::domain::models::Folder::new(root.to_path_buf());
+    state
+        .repositories
+        .folder
+        .create_folder(&folder)
+        .await
+        .unwrap();
+
+    let doc_id = backend::domain::models::DocumentId::from_relative_path(folder.id, "main.rs");
 
     let entry = backend::domain::models::RegistryEntry {
         id: doc_id,
-        folder_id,
-        relative_path: "src/main.rs".to_string(),
+        folder_id: folder.id,
+        relative_path: "main.rs".to_string(),
         content_hash: "hash".to_string(),
         file_size: 100,
         status: backend::domain::models::DocumentStatus::Indexed,
