@@ -55,11 +55,15 @@ Semua dependensi dan versi harus mengacu pada spesifikasi resmi berikut:
 - **Observability:** `tracing`, `tracing-subscriber` (JSON/Pretty env logger), `tracing-appender` (rolling 7-day log), `thiserror` (hierarki error terstruktur).
 
 ### 2.2 Frontend (Tauri Desktop Application)
-- **Desktop Runtime:** Tauri 2.12 Host (`@tauri-apps/api`, `@tauri-apps/plugin-dialog`, `@tauri-apps/plugin-shell`, `@tauri-apps/plugin-window-state`, `@tauri-apps/plugin-single-instance`, `@tauri-apps/plugin-clipboard-manager`).
+- **Desktop Runtime:** Tauri 2.12 Host (`@tauri-apps/api`, `@tauri-apps/plugin-dialog`, `@tauri-apps/plugin-shell`, `@tauri-apps/plugin-opener`, `@tauri-apps/plugin-window-state`, `@tauri-apps/plugin-single-instance`, `@tauri-apps/plugin-clipboard-manager`).
 - **Core UI:** React 19.3, TypeScript 5.8+, Vite 8.1.
 - **Styling & Components:** Tailwind CSS 4.3 (menggunakan `@theme` token & CSS variables), `shadcn/ui` (Radix UI primitives), `lucide-react`, `sonner`.
 - **State & Data Fetching:** TanStack Query v5 (server cache & polling progress job), Zustand 5 (UI state lokal), `@tanstack/react-virtual` (virtualisasi baris kode).
 - **Syntax Highlighting & Markdown:** `react-markdown` 10.x, `Shiki` (syntax highlight presisi dengan nomor baris).
+- **OS & Window Integration Guardrails:**
+  - *GTK File Dialog Geometry & Parenting:* Auto-clamp `org.gtk.Settings.FileChooser window-size` ke `(900, 560)` dan wajib kaitkan parent window via `builder.set_parent(&window)` agar dialog berstatus modal transient dan tidak pernah muncul tertutup di belakang window utama. Ketika dialog dibatalkan oleh pengguna, bridge mengembalikan `null` langsung tanpa memicu dialog kedua.
+  - *Window Stacking & Tiling Manager:* Enforce `set_always_on_top(false)` di runtime backend dan pastikan ekstensi tiling GNOME (seperti Forge) menonaktifkan `float-always-on-top-enabled` agar window dapat ditutup/ditumpuk secara wajar oleh aplikasi lain (IDE, Terminal, dll.). Gunakan native command `focus_window` dengan permission `core:window:allow-set-focus` untuk menaikkan window saat diklik.
+  - *Gesture Zoom Blocking:* Intersepsi dan buang event `gdk::EventType::TouchpadPinch` pada level widget GTK via `webview.connect_event` (`glib::Propagation::Stop`) serta pasang `connect_zoom_level_notify` guard; sediakan keyboard zoom terkontrol via native command `set_desktop_zoom` (`Ctrl +`, `Ctrl -`, `Ctrl 0`).
 
 ### 2.3 Data Store & Infrastruktur (Docker Compose)
 - **PostgreSQL:** 18.6-alpine (Container: `lynx_postgres`, port default `127.0.0.1:5432`).
@@ -248,12 +252,15 @@ sequenceDiagram
 ```
 
 ### 6.1 Frontend State Management
-- **Server State (TanStack Query v5):** Menangani cache respons REST, revalidasi, dan *polling* otomatis status job indexing (`refetchInterval: 1500ms` saat job aktif).
+- **Server State (TanStack Query v5):** Menangani cache respons REST, revalidasi, dan *polling* otomatis status job indexing (`refetchInterval: 1500ms` saat job aktif) serta status folder (`useFoldersQuery` dengan dynamic `refetchInterval: 1500ms` selama ada folder berstatus `SCANNING`).
 - **Client UI State (Zustand 5):** Mengelola query input pengguna, filter inline aktif, toggle facet, navigasi keyboard hasil pencarian, dan state pembukaan panel preview.
 - **Virtualized Rendering (@tanstack/react-virtual):** Wajib diterapkan pada daftar baris kode atau dokumen teks panjang (> 100 baris) di panel preview guna mencegah *DOM bloat*.
+- **Optimistic Scanning Feedback & Batch Re-scan:** Pada Folder Manager, status pemindaian (`SCANNING`) didukung state optimistik lokal (`activeScanningFolderIds`) dengan durasi display minimum 1.5 detik agar pemindaian inkremental yang selesai cepat (< 50ms) tetap terlihat aktif secara visual di tabel. Aksi `Pindai Semua` (Re-scan All) mengeksekusi re-scan paralel ke semua folder via `Promise.allSettled`.
+- **Preview Panel Clipboard Contract:** Tombol utama salin pada panel preview (`Copy Content`) menyalin isi berkas (`doc.content`) via clipboard dengan shortcut `Cmd/Ctrl + Shift + C`, sedangkan klik pada path berkas di header menyalin path.
+- **TopBar Health Indicator Smoothness:** Memisahkan status koneksi (`isConnecting`) dari background polling berkala 10 detik (`isRefetching`) agar status `Ready` tidak berkedip glitched setiap siklus refetch; dilengkapi transisi CSS halus `transition-colors duration-300`.
 
 ### 6.2 Concurrency & Worker Queue (Backend)
-- Background indexing diproses menggunakan Tokio MPSC Bounded Channel dengan batas konkurensi terkendali.
+- Background indexing diproses menggunakan Tokio MPSC Bounded Channel dengan batas konkurensi terkendali: hingga 2 folder berbeda dapat dipindai secara bersamaan (*multi-folder concurrency* via Semaphore/Tokio task pool), dengan jaminan eksklusivitas mutlak 1 job per folder aktif (`folder_locks`).
 - State progress job dicatat secara *in-memory* (menggunakan `DashMap` atau `Arc<RwLock>`) untuk update instan dan dipersistensikan secara periodik ke PostgreSQL.
 
 ### Referensi Detail Dokumen
@@ -305,8 +312,19 @@ Jika pengguna memasukkan token filter yang tidak dikenal (misal: `unknown:value`
 }
 ```
 
+### 7.3 Kontrak Native IPC Tauri (Desktop Bridge)
+Aplikasi desktop menyediakan Tauri Invoke Commands native di `apps/desktop/src-tauri/src/lib.rs` yang dikonsumsi oleh `apps/desktop/src/lib/desktop-bridge.ts`:
+
+| Command IPC | Argumen | Return Type | Perilaku & Guardrails OS |
+|---|---|---|---|
+| `pick_folder` | - | `Option<String>` | Membuka GTK file chooser dengan window parenting langsung (`builder.set_parent(&window)`) agar modal transient tetap berada di depan aplikasi utama; ukuran auto-clamp ke `(900, 560)`; mengembalikan `null` saat dibatalkan tanpa memicu dialog kedua. |
+| `focus_window` | - | `()` | Memastikan window tidak always on top (`set_always_on_top(false)`), `unminimize`, `show`, dan `set_focus` (ACL `core:window:allow-set-focus`) agar window LynxSearch dan window aplikasi lain (IDE, terminal) dapat saling menumpuk secara wajar. |
+| `set_desktop_zoom` | `scale: f64` | `()` | Mengatur WebKitGTK webview zoom level secara atomik via keyboard shortcut desktop (`Ctrl + +`, `Ctrl + -`, `Ctrl + 0`) dalam batas skala 0.8x hingga 1.5x. |
+| `open_file_in_editor` | `path: String` | `()` | Membuka file di editor atau viewer default sistem host via plugin opener/shell. |
+
 ### Referensi Detail Dokumen
 - Kontrak Lengkap REST API: [ARCHITECTURE.md#6. Kontrak HTTP REST API (Axum 0.8)](file:///mnt/windows/Users/boyblanco/Documents/code/web/Rust_LynxSearch/ARCHITECTURE.md#L967-L994)
+- Integrasi Desktop Bridge: [ARCHITECTURE.md#7.2 Desain Frontend & Desktop Bridge](file:///mnt/windows/Users/boyblanco/Documents/code/web/Rust_LynxSearch/ARCHITECTURE.md#L1350-L1360)
 - Spesifikasi Kontrak PRD: [PRD-LynxSearch.md#Kontrak API (tingkat tinggi)](file:///mnt/windows/Users/boyblanco/Documents/code/web/Rust_LynxSearch/PRD-LynxSearch.md#L243-L264)
 
 ---
