@@ -281,16 +281,26 @@ impl SearchQueryBuilder {
             content_field.insert("boundary_chars".to_string(), json!(boundary_chars));
         }
 
+        let mut fields_map = serde_json::Map::new();
+        fields_map.insert("title".to_string(), json!({ "number_of_fragments": 0 }));
+        fields_map.insert("content".to_string(), Value::Object(content_field.clone()));
+
+        if self.query_code_subfields {
+            fields_map.insert(
+                "title.code".to_string(),
+                json!({ "number_of_fragments": 0 }),
+            );
+            fields_map.insert(
+                "content.code".to_string(),
+                Value::Object(content_field),
+            );
+        }
+
         Some(json!({
             "pre_tags": config.pre_tags,
             "post_tags": config.post_tags,
             "require_field_match": config.require_field_match,
-            "fields": {
-                "title": {
-                    "number_of_fragments": 0
-                },
-                "content": Value::Object(content_field)
-            }
+            "fields": Value::Object(fields_map)
         }))
     }
 
