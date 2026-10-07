@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchJob, cancelJob, rebuildIndex } from '../api';
 import { queryKeys } from './queryKeys';
-import type { JobStatusResponse, RebuildIndexResponse } from '../types/job';
+import type { JobStatusResponse, CancelJobResponse, RebuildIndexResponse } from '../types/job';
 
 export function useJobQuery(jobId: string | null | undefined) {
   return useQuery<JobStatusResponse>({
@@ -14,7 +14,7 @@ export function useJobQuery(jobId: string | null | undefined) {
     refetchInterval: (query) => {
       const status = query.state.data?.status;
       if (status === 'RUNNING' || status === 'PENDING') {
-        return 1500;
+        return 1000;
       }
       return false;
     },
@@ -24,7 +24,7 @@ export function useJobQuery(jobId: string | null | undefined) {
 export function useCancelJobMutation() {
   const queryClient = useQueryClient();
 
-  return useMutation<JobStatusResponse, Error, string>({
+  return useMutation<CancelJobResponse, Error, string>({
     mutationFn: (jobId) => cancelJob(jobId),
     onSuccess: (data) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.jobs.detail(data.job_id) });
