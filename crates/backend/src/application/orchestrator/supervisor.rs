@@ -4,12 +4,13 @@ use crate::state::Repositories;
 use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::{Mutex, mpsc};
-use tokio::task::JoinHandle;
+use tokio::sync::{Mutex, Semaphore, mpsc};
+use tokio::task::{JoinHandle, JoinSet};
 use tokio_util::sync::CancellationToken;
 
 pub const WORKER_PANIC_ERROR_MSG: &str = "Internal Worker Panic: Process terminated unexpectedly";
 pub const DEFAULT_SUPERVISOR_BACKOFF: Duration = Duration::from_secs(1);
+pub const MAX_CONCURRENT_FOLDER_SCANS: usize = 2;
 
 /// Recovers database and in-memory state after a background worker crash/panic.
 pub async fn recover_panicked_worker(
@@ -116,16 +117,31 @@ pub async fn run_supervisor<F, Fut>(
 }
 
 /// Worker loop processing incoming `WorkerCommand`s and dispatching via `IndexOrchestrator`.
+/// Supports up to `MAX_CONCURRENT_FOLDER_SCANS` concurrent folder scans while maintaining
+/// immediate cancellation responsiveness and exclusive index rebuilding.
 pub async fn run_orchestrator_worker_loop(
     orchestrator: Arc<IndexOrchestrator>,
     receiver: Arc<Mutex<mpsc::Receiver<WorkerCommand>>>,
     shutdown_token: CancellationToken,
 ) {
+    let scan_semaphore = Arc::new(Semaphore::new(MAX_CONCURRENT_FOLDER_SCANS));
+    let mut tasks = JoinSet::new();
+
     loop {
         tokio::select! {
             _ = shutdown_token.cancelled() => {
                 tracing::info!("Worker loop received shutdown signal, stopped accepting new tasks");
                 break;
+            }
+            Some(res) = tasks.join_next(), if !tasks.is_empty() => {
+                if let Err(join_err) = res {
+                    if join_err.is_panic() {
+                        tracing::error!("A spawned worker task panicked: {:?}", join_err);
+                        std::panic::resume_unwind(join_err.into_panic());
+                    } else {
+                        tracing::warn!("A spawned worker task was cancelled/aborted: {:?}", join_err);
+                    }
+                }
             }
             cmd_opt = async {
                 let mut rx = receiver.lock().await;
@@ -134,8 +150,74 @@ pub async fn run_orchestrator_worker_loop(
                 match cmd_opt {
                     Some(cmd) => {
                         tracing::debug!("Worker received command: {cmd:?}");
-                        if let Err(err) = orchestrator.dispatch(cmd).await {
-                            tracing::error!("Error dispatching worker command: {err}");
+                        match cmd {
+                            WorkerCommand::CancelJob { job_id } => {
+                                tracing::debug!(job_id = %job_id, "Executing immediate cancellation in worker loop");
+                                if let Err(err) = orchestrator.dispatch(WorkerCommand::CancelJob { job_id }).await {
+                                    tracing::error!("Error dispatching cancel job command: {err}");
+                                }
+                            }
+                            WorkerCommand::IndexFolder {
+                                job_id,
+                                folder_id,
+                                rescan,
+                            } => {
+                                let sem = scan_semaphore.clone();
+                                let orch = orchestrator.clone();
+                                let token = shutdown_token.clone();
+                                tasks.spawn(async move {
+                                    let _permit = tokio::select! {
+                                        _ = token.cancelled() => {
+                                            tracing::info!(job_id = %job_id, "Shutdown cancelled before acquiring scan permit");
+                                            return;
+                                        }
+                                        permit_res = sem.acquire_owned() => {
+                                            match permit_res {
+                                                Ok(p) => p,
+                                                Err(_) => {
+                                                    tracing::warn!("Scan semaphore closed for job {job_id}");
+                                                    return;
+                                                }
+                                            }
+                                        }
+                                    };
+
+                                    tracing::debug!(job_id = %job_id, folder_id = %folder_id, "Worker task starting IndexFolder execution");
+                                    if let Err(err) = orch.dispatch(WorkerCommand::IndexFolder { job_id, folder_id, rescan }).await {
+                                        tracing::error!("Error dispatching IndexFolder command: {err}");
+                                    }
+                                });
+                            }
+                            WorkerCommand::RebuildIndex {
+                                job_id,
+                                target_index,
+                            } => {
+                                let sem = scan_semaphore.clone();
+                                let orch = orchestrator.clone();
+                                let token = shutdown_token.clone();
+                                tasks.spawn(async move {
+                                    let _permits = tokio::select! {
+                                        _ = token.cancelled() => {
+                                            tracing::info!(job_id = %job_id, "Shutdown cancelled before acquiring rebuild permits");
+                                            return;
+                                        }
+                                        permits_res = sem.acquire_many_owned(MAX_CONCURRENT_FOLDER_SCANS as u32) => {
+                                            match permits_res {
+                                                Ok(p) => p,
+                                                Err(_) => {
+                                                    tracing::warn!("Scan semaphore closed for rebuild job {job_id}");
+                                                    return;
+                                                }
+                                            }
+                                        }
+                                    };
+
+                                    tracing::debug!(job_id = %job_id, "Worker task starting RebuildIndex execution (exclusive)");
+                                    if let Err(err) = orch.dispatch(WorkerCommand::RebuildIndex { job_id, target_index }).await {
+                                        tracing::error!("Error dispatching RebuildIndex command: {err}");
+                                    }
+                                });
+                            }
                         }
                     }
                     None => {
@@ -144,6 +226,19 @@ pub async fn run_orchestrator_worker_loop(
                     }
                 }
             }
+        }
+    }
+
+    // Await any remaining background tasks before finishing the loop
+    while let Some(res) = tasks.join_next().await {
+        if let Err(join_err) = res
+            && join_err.is_panic()
+        {
+            tracing::error!(
+                "Worker background task panicked during shutdown drain: {:?}",
+                join_err
+            );
+            std::panic::resume_unwind(join_err.into_panic());
         }
     }
 }

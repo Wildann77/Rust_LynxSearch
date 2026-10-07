@@ -16,7 +16,7 @@ pub use shutdown::{
     shutdown_in_flight_jobs, shutdown_signal,
 };
 pub use supervisor::{
-    DEFAULT_SUPERVISOR_BACKOFF, WORKER_PANIC_ERROR_MSG, recover_panicked_worker,
-    run_orchestrator_worker_loop, run_supervisor, run_worker_loop, spawn_orchestrator_supervisor,
-    spawn_worker_supervisor,
+    DEFAULT_SUPERVISOR_BACKOFF, MAX_CONCURRENT_FOLDER_SCANS, WORKER_PANIC_ERROR_MSG,
+    recover_panicked_worker, run_orchestrator_worker_loop, run_supervisor, run_worker_loop,
+    spawn_orchestrator_supervisor, spawn_worker_supervisor,
 };
