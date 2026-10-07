@@ -295,3 +295,73 @@ async fn test_single_document_exclusion_error_cases() {
     let res_missing_file = app.oneshot(req_missing_file).await.unwrap();
     assert_eq!(res_missing_file.status(), StatusCode::UNPROCESSABLE_ENTITY);
 }
+
+#[tokio::test]
+async fn test_get_document_detail_endpoint_success_and_error_cases() {
+    let (state, mut rx) = AppState::test_state();
+    let app = create_router_with_state(state.clone());
+    let orchestrator = state.orchestrator();
+
+    let temp = tempdir().unwrap();
+    let root = temp.path();
+
+    let file_path = root.join("hello.rs");
+    let file_content = "// Hello Rust LynxSearch\npub fn hello() -> &'static str { \"world\" }";
+    fs::write(&file_path, file_content).unwrap();
+
+    let folder = Folder::new(root.to_path_buf());
+    state
+        .repositories
+        .folder
+        .create_folder(&folder)
+        .await
+        .unwrap();
+
+    let _job_id = orchestrator
+        .submit_index_folder(folder.id, false)
+        .await
+        .unwrap();
+    let cmd = rx.recv().await.unwrap();
+    orchestrator.dispatch(cmd).await.unwrap();
+
+    let doc_id = DocumentId::from_relative_path(folder.id, "hello.rs");
+
+    // 1. Success GET /api/documents/:id
+    let req = Request::builder()
+        .uri(format!("/api/documents/{}", doc_id.as_uuid()))
+        .method("GET")
+        .body(Body::empty())
+        .unwrap();
+
+    let res = app.clone().oneshot(req).await.unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+
+    let body_bytes = axum::body::to_bytes(res.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let json_val: Value = serde_json::from_slice(&body_bytes).unwrap();
+
+    assert_eq!(json_val["id"], doc_id.as_uuid().to_string());
+    assert_eq!(json_val["folder_id"], folder.id.as_uuid().to_string());
+    assert_eq!(json_val["relative_path"], "hello.rs");
+    assert_eq!(json_val["content"], file_content);
+    assert_eq!(json_val["type"], "code");
+    assert_eq!(json_val["language"], "rust");
+
+    // 2. 404 for unknown document UUID
+    let non_existent_id = uuid::Uuid::new_v4();
+    let req_404 = Request::builder()
+        .uri(format!("/api/documents/{non_existent_id}"))
+        .method("GET")
+        .body(Body::empty())
+        .unwrap();
+
+    let res_404 = app.clone().oneshot(req_404).await.unwrap();
+    assert_eq!(res_404.status(), StatusCode::NOT_FOUND);
+
+    let body_bytes = axum::body::to_bytes(res_404.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let json_err: Value = serde_json::from_slice(&body_bytes).unwrap();
+    assert_eq!(json_err["code"], "DOCUMENT_NOT_FOUND");
+}
