@@ -12,13 +12,20 @@ pub async fn list_folders(State(state): State<AppState>) -> Result<impl IntoResp
     let folders_with_counts = state.repositories.folder.list_folders_with_counts().await?;
     let dtos: Vec<FolderResponseDto> = folders_with_counts
         .into_iter()
-        .map(|(folder, count)| FolderResponseDto {
-            id: *folder.id.as_uuid(),
-            root_path: folder.path.to_string_lossy().to_string(),
-            status: folder.status,
-            document_count: count,
-            last_scanned_at: folder.last_scanned_at,
-            created_at: folder.created_at,
+        .map(|(folder, count)| {
+            let status = if state.job_tracker.is_folder_locked(&folder.id) {
+                crate::domain::models::FolderStatus::Scanning
+            } else {
+                folder.status
+            };
+            FolderResponseDto {
+                id: *folder.id.as_uuid(),
+                root_path: folder.path.to_string_lossy().to_string(),
+                status,
+                document_count: count,
+                last_scanned_at: folder.last_scanned_at,
+                created_at: folder.created_at,
+            }
         })
         .collect();
 
