@@ -157,7 +157,18 @@ impl IndexOrchestrator {
         let token = CancellationToken::new();
         self.job_tracker.register_job(job_id, folder_id, token);
 
-        // 5. Enqueue command to worker channel
+        // 5. Update folder status in database immediately so UI sees SCANNING right away
+        if let Err(e) = self
+            .repositories
+            .folder
+            .update_status(&folder_id, FolderStatus::Scanning)
+            .await
+        {
+            self.job_tracker.release_folder_lock(&folder_id);
+            return Err(e);
+        }
+
+        // 6. Enqueue command to worker channel
         if let Err(e) = self
             .worker_sender
             .send(WorkerCommand::IndexFolder {
@@ -168,6 +179,11 @@ impl IndexOrchestrator {
             .await
         {
             self.job_tracker.release_folder_lock(&folder_id);
+            let _ = self
+                .repositories
+                .folder
+                .update_status(&folder_id, FolderStatus::Idle)
+                .await;
             return Err(AppError::Internal(format!(
                 "Failed to enqueue index folder command: {e}"
             )));
@@ -340,6 +356,11 @@ impl IndexOrchestrator {
         {
             tracing::info!(job_id = %job_id, "Job was cancelled before execution");
             self.job_tracker.release_folder_lock(&folder_id);
+            let _ = self
+                .repositories
+                .folder
+                .update_status(&folder_id, FolderStatus::Idle)
+                .await;
             return Ok(());
         }
 
