@@ -212,3 +212,82 @@ async fn test_spawn_worker_supervisor_lifecycle_and_channel_processing() {
     assert!(result.is_ok(), "Supervisor must join within timeout");
     assert!(result.unwrap().is_ok());
 }
+
+#[tokio::test]
+async fn test_worker_supervisor_processes_two_folders_concurrently() {
+    let (state, rx) = AppState::test_state();
+    let shutdown_token = state.shutdown_token();
+
+    let supervisor_handle = spawn_worker_supervisor(
+        state.repositories.clone(),
+        state.job_tracker.clone(),
+        rx,
+        shutdown_token.clone(),
+        DEFAULT_SUPERVISOR_BACKOFF,
+    );
+
+    let temp_a = tempfile::tempdir().unwrap();
+    let temp_b = tempfile::tempdir().unwrap();
+
+    let folder_a = FolderId::new();
+    let folder_b = FolderId::new();
+
+    state
+        .repositories
+        .folder
+        .create_folder(&Folder {
+            id: folder_a,
+            path: temp_a.path().to_path_buf(),
+            status: FolderStatus::Idle,
+            created_at: chrono::Utc::now(),
+            last_scanned_at: None,
+        })
+        .await
+        .unwrap();
+
+    state
+        .repositories
+        .folder
+        .create_folder(&Folder {
+            id: folder_b,
+            path: temp_b.path().to_path_buf(),
+            status: FolderStatus::Idle,
+            created_at: chrono::Utc::now(),
+            last_scanned_at: None,
+        })
+        .await
+        .unwrap();
+
+    let job_a = state
+        .orchestrator()
+        .submit_index_folder(folder_a, false)
+        .await
+        .unwrap();
+    let job_b = state
+        .orchestrator()
+        .submit_index_folder(folder_b, false)
+        .await
+        .unwrap();
+
+    // Poll until both jobs complete (up to 3 seconds)
+    let start = std::time::Instant::now();
+    loop {
+        let prog_a = state.job_tracker.get_progress(&job_a).map(|s| s.status);
+        let prog_b = state.job_tracker.get_progress(&job_b).map(|s| s.status);
+
+        if prog_a == Some(JobStatus::Completed) && prog_b == Some(JobStatus::Completed) {
+            break;
+        }
+
+        if start.elapsed() > Duration::from_secs(3) {
+            panic!(
+                "Timed out waiting for concurrent jobs to finish. State A: {:?}, State B: {:?}",
+                prog_a, prog_b
+            );
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+
+    shutdown_token.cancel();
+    let _ = tokio::time::timeout(Duration::from_secs(2), supervisor_handle).await;
+}
