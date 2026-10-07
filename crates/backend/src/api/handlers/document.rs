@@ -1,33 +1,32 @@
 use axum::Json;
 use axum::extract::State;
+use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use chrono::Utc;
-use serde_json::json;
-use uuid::Uuid;
 
 use crate::api::dtos::PathUuid;
 use crate::api::extractors::ValidatedPath;
+use crate::domain::models::DocumentId;
+use crate::error::AppError;
+use crate::infrastructure::fs::LocalFileReader;
 use crate::state::AppState;
 
 pub async fn get_document(
-    _state: State<AppState>,
+    State(state): State<AppState>,
     ValidatedPath(path): ValidatedPath<PathUuid>,
-) -> impl IntoResponse {
-    Json(json!({
-        "id": path.id,
-        "folder_id": Uuid::nil(),
-        "folder_root_path": "",
-        "relative_path": "",
-        "title": "",
-        "content": "",
-        "type": "doc",
-        "language": "markdown",
-        "tags": [],
-        "project": "",
-        "file_size": 0,
-        "content_hash": "",
-        "updated_at": Utc::now().to_rfc3339()
-    }))
+) -> Result<impl IntoResponse, AppError> {
+    let doc_id = DocumentId::from_uuid(path.id);
+    let settings = state.get_settings().await;
+    let file_reader = LocalFileReader::new(state.file_io_semaphore.clone());
+
+    let detail = crate::application::queries::document::get_document_detail(
+        &state.repositories,
+        &file_reader,
+        &settings,
+        &doc_id,
+    )
+    .await?;
+
+    Ok((StatusCode::OK, Json(detail)))
 }
 
 pub async fn delete_document(
