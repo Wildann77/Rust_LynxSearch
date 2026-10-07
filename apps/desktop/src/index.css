@@ -1,6 +1,15 @@
 @import "tailwindcss";
 
 @layer base {
+  *,
+  *::before,
+  *::after,
+  html,
+  body,
+  #root {
+    touch-action: pan-x pan-y;
+  }
+
   :root {
     /* Light Mode Fallback */
     --background: 0 0% 100%;
