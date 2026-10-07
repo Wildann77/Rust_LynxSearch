@@ -11,6 +11,8 @@ export interface UIState {
   theme: AppTheme;
   activeTab: AppTab;
   indexingJobId: string | null;
+  indexingJobIds: string[];
+  jobDrawerExpanded: boolean;
   folderModalOpen: boolean;
   settingsModalOpen: boolean;
 
@@ -22,6 +24,11 @@ export interface UIState {
   setTheme: (theme: AppTheme) => void;
   setActiveTab: (activeTab: AppTab) => void;
   setIndexingJobId: (indexingJobId: string | null) => void;
+  addIndexingJobId: (jobId: string) => void;
+  removeIndexingJobId: (jobId: string) => void;
+  clearIndexingJobIds: () => void;
+  toggleJobDrawer: () => void;
+  setJobDrawerExpanded: (expanded: boolean) => void;
   setFolderModalOpen: (open: boolean) => void;
   setSettingsModalOpen: (open: boolean) => void;
 }
@@ -39,6 +46,8 @@ export const useUIStore = create<UIState>()(
       theme: 'dark',
       activeTab: 'search',
       indexingJobId: null,
+      indexingJobIds: [],
+      jobDrawerExpanded: false,
       folderModalOpen: false,
       settingsModalOpen: false,
 
@@ -52,7 +61,40 @@ export const useUIStore = create<UIState>()(
         }),
       setTheme: (theme) => set({ theme }),
       setActiveTab: (activeTab) => set({ activeTab }),
-      setIndexingJobId: (indexingJobId) => set({ indexingJobId }),
+      setIndexingJobId: (indexingJobId) =>
+        set((state) => ({
+          indexingJobId,
+          indexingJobIds: indexingJobId
+            ? state.indexingJobIds.includes(indexingJobId)
+              ? state.indexingJobIds
+              : [...state.indexingJobIds, indexingJobId]
+            : [],
+        })),
+      addIndexingJobId: (jobId) =>
+        set((state) => ({
+          indexingJobId: jobId,
+          indexingJobIds: state.indexingJobIds.includes(jobId)
+            ? state.indexingJobIds
+            : [...state.indexingJobIds, jobId],
+        })),
+      removeIndexingJobId: (jobId) =>
+        set((state) => {
+          const nextIds = state.indexingJobIds.filter((id) => id !== jobId);
+          return {
+            indexingJobIds: nextIds,
+            indexingJobId:
+              state.indexingJobId === jobId
+                ? (nextIds[nextIds.length - 1] ?? null)
+                : state.indexingJobId,
+          };
+        }),
+      clearIndexingJobIds: () =>
+        set({
+          indexingJobId: null,
+          indexingJobIds: [],
+        }),
+      toggleJobDrawer: () => set((state) => ({ jobDrawerExpanded: !state.jobDrawerExpanded })),
+      setJobDrawerExpanded: (jobDrawerExpanded) => set({ jobDrawerExpanded }),
       setFolderModalOpen: (folderModalOpen) => set({ folderModalOpen }),
       setSettingsModalOpen: (settingsModalOpen) => set({ settingsModalOpen }),
     }),
