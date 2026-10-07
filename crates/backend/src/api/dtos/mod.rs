@@ -7,7 +7,7 @@ pub mod search;
 pub mod settings;
 
 pub use common::{PathUuid, ValidatedUuid};
-pub use document::DeleteDocumentResponseDto;
+pub use document::{DeleteDocumentResponseDto, DocumentDetailResponseDto};
 pub use folder::{
     DeleteFolderResponseDto, FolderResponseDto, IndexFolderResponseDto, RegisterFolderRequestDto,
 };
