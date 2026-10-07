@@ -19,6 +19,11 @@ export function useFoldersQuery() {
     queryKey: queryKeys.folders.list(),
     queryFn: ({ signal }) => fetchFolders(signal),
     staleTime: 10_000,
+    refetchInterval: (query) => {
+      const folders = query.state.data;
+      const isScanning = folders?.some((f) => f.status === 'SCANNING');
+      return isScanning ? 1500 : false;
+    },
   });
 }
 
