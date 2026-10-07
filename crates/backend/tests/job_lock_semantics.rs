@@ -284,7 +284,7 @@ async fn test_lock_released_on_worker_panic() {
             .unwrap();
 
     assert_eq!(jobs_failed, 1);
-    assert_eq!(folders_reset, 0); // was pending
+    assert_eq!(folders_reset, 1); // folder was set to scanning on submission
 
     // 3. Verify job failed, folder idle, and lock released
     let progress = state.job_tracker.get_progress(&job_id).unwrap();
