@@ -36,7 +36,7 @@ elasticsearch = { version = "=8.19.0-alpha.1", default-features = false, feature
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["raw_value"] }
 serde_yaml = "0.9"
-validator = { version = "0.19", features = ["derive"] }
+validator = { version = "0.20", features = ["derive"] }
 
 # Error Handling & Observability
 thiserror = "2.0"
