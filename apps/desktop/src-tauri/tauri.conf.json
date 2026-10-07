@@ -27,12 +27,5 @@
       "csp": "default-src 'self'; connect-src 'self' http://127.0.0.1:3001; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self' data:;"
     }
   },
-  "plugins": {
-    "dialog": {},
-    "shell": {},
-    "opener": {},
-    "window-state": {},
-    "single-instance": {},
-    "clipboard-manager": {}
-  }
+  "plugins": {}
 }
