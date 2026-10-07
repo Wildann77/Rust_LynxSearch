@@ -276,9 +276,11 @@ pub fn parse_search_execution_result(
         if let Some(hl_map) = hit.highlight {
             let mut ordered_fields: Vec<String> = hl_map.keys().cloned().collect();
             ordered_fields.sort_by(|a, b| {
-                if a == "content" {
+                let a_is_content = a == "content" || a == "content.code";
+                let b_is_content = b == "content" || b == "content.code";
+                if a_is_content && !b_is_content {
                     std::cmp::Ordering::Less
-                } else if b == "content" {
+                } else if !a_is_content && b_is_content {
                     std::cmp::Ordering::Greater
                 } else {
                     a.cmp(b)
@@ -288,17 +290,38 @@ pub fn parse_search_execution_result(
             for field in ordered_fields {
                 if let Some(snippets) = hl_map.get(&field) {
                     for snippet in snippets {
-                        let line_number = if field == "content" && !content.is_empty() {
-                            extract_line_number(content, snippet)
+                        let is_content_field = field == "content" || field == "content.code";
+                        if is_content_field && snippet.contains('\n') && snippet.contains("<em>") {
+                            for line in snippet.lines() {
+                                if line.contains("<em>") {
+                                    let line_str = line.trim().to_string();
+                                    let line_number = if !content.is_empty() {
+                                        extract_line_number(content, &line_str)
+                                    } else {
+                                        None
+                                    };
+                                    let hl = SearchHighlight {
+                                        snippet: line_str,
+                                        line_number,
+                                    };
+                                    if !highlights.contains(&hl) {
+                                        highlights.push(hl);
+                                    }
+                                }
+                            }
                         } else {
-                            None
-                        };
-                        let hl = SearchHighlight {
-                            snippet: snippet.clone(),
-                            line_number,
-                        };
-                        if !highlights.contains(&hl) {
-                            highlights.push(hl);
+                            let line_number = if is_content_field && !content.is_empty() {
+                                extract_line_number(content, snippet)
+                            } else {
+                                None
+                            };
+                            let hl = SearchHighlight {
+                                snippet: snippet.clone(),
+                                line_number,
+                            };
+                            if !highlights.contains(&hl) {
+                                highlights.push(hl);
+                            }
                         }
                     }
                 }
