@@ -464,7 +464,7 @@ Untuk menjaga alur pencarian tidak terputus, fitur manajemen dan pengaturan disa
 - **Fungsi**: Mendaftarkan folder baru, melihat status folder yang terdaftar, memicu Re-scan, menghapus folder dari index, dan memicu Rebuild Index.
 - **Elemen UI**:
   - Tombol primer: `+ Tambah Folder` (memanggil `@tauri-apps/plugin-dialog` native directory picker).
-  - Tabel Folder: Path root, Waktu scan terakhir (`formatRelativeTime`), Jumlah dokumen ter-index, Badge status (`IDLE`, `INDEXING`, `ERROR`).
+  - Tabel Folder: Path root, Waktu scan terakhir (`formatRelativeTime`), Jumlah dokumen ter-index, Badge status (`IDLE`, `SCANNING`, `ERROR`).
   - Action per folder: Tombol `Re-scan` (idempoten), Tombol `Hapus` (dengan konfirmasi dialog).
   - Tombol bahaya: `Rebuild Index` (dialog konfirmasi bertingkat sebelum menghapus dan membangun ulang index Elasticsearch).
 
