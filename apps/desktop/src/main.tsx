@@ -5,9 +5,9 @@ import { queryClient } from './lib/query-client';
 import App from './App';
 import './index.css';
 
-import { focusWindow, setDesktopZoom } from './lib/desktop-bridge';
+import { setDesktopZoom } from './lib/desktop-bridge';
 
-// Window Focus & Touchpad Gesture Control
+// Touchpad Gesture Control & Controlled Keyboard Zoom
 if (typeof window !== 'undefined') {
   // 1. Wheel zoom (trackpad pinch synthesizes wheel event with ctrlKey=true)
   const preventWheelZoom = (e: WheelEvent) => {
@@ -38,12 +38,7 @@ if (typeof window !== 'undefined') {
   document.addEventListener('gesturechange', preventGesture, { capture: true });
   document.addEventListener('gestureend', preventGesture, { capture: true });
 
-  // 4. Click window to bring to front (focus)
-  window.addEventListener('mousedown', () => {
-    void focusWindow();
-  }, { capture: true });
-
-  // 5. Keyboard zoom (Ctrl + + / Ctrl + - / Ctrl + 0)
+  // 4. Keyboard zoom (Ctrl + + / Ctrl + - / Ctrl + 0)
   let currentZoom = 1.0;
   window.addEventListener('keydown', (e: KeyboardEvent) => {
     if (e.ctrlKey || e.metaKey) {
