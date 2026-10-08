@@ -6,19 +6,23 @@
 export function formatDateTime(dateStr: string | null | undefined): string {
   if (!dateStr) return '-';
   try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '-';
     return new Intl.DateTimeFormat(undefined, {
       dateStyle: 'medium',
       timeStyle: 'short',
-    }).format(new Date(dateStr));
+    }).format(d);
   } catch {
-    return dateStr;
+    return '-';
   }
 }
 
 export function formatRelativeTime(dateStr: string | null | undefined): string {
   if (!dateStr) return '-';
   try {
-    const deltaSeconds = Math.round((new Date(dateStr).getTime() - Date.now()) / 1000);
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '-';
+    const deltaSeconds = Math.round((d.getTime() - Date.now()) / 1000);
     const cutoffs = [60, 3600, 86400, 86400 * 7, 86400 * 30, Infinity];
     const units: Intl.RelativeTimeFormatUnit[] = ['second', 'minute', 'hour', 'day', 'week', 'month'];
     const unitIndex = cutoffs.findIndex((cutoff) => cutoff > Math.abs(deltaSeconds));
@@ -26,7 +30,7 @@ export function formatRelativeTime(dateStr: string | null | undefined): string {
     const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
     return rtf.format(Math.round(deltaSeconds / divisor), units[unitIndex]);
   } catch {
-    return dateStr;
+    return '-';
   }
 }
 
