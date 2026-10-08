@@ -3,7 +3,9 @@ import { fetchHealth, fetchHealthLive, fetchHealthReady } from '../api';
 import { queryKeys } from './queryKeys';
 import type { HealthSummaryResponse, LivenessResponse, ReadinessResponse } from '../types/health';
 
-export function useHealthQuery(options: { refetchInterval?: number | false } = {}) {
+export function useHealthQuery(
+  options: { refetchInterval?: number | false; retry?: number | boolean } = {},
+) {
   return useQuery<HealthSummaryResponse>({
     queryKey: queryKeys.health.summary(),
     queryFn: ({ signal }) => fetchHealth(signal),
@@ -15,7 +17,7 @@ export function useHealthQuery(options: { refetchInterval?: number | false } = {
     },
     refetchOnWindowFocus: true,
     refetchIntervalInBackground: true,
-    retry: 1,
+    retry: options.retry ?? 1,
   });
 }
 
