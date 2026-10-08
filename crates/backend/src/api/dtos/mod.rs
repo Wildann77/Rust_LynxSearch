@@ -13,6 +13,7 @@ pub use folder::{
 };
 pub use health::{
     ComponentHealthDto, HealthSummaryResponseDto, LivenessResponseDto, ReadinessResponseDto,
+    StatsResponseDto,
 };
 pub use index::{
     IndexDocumentRequestDto, IndexDocumentResponseDto, JobStatusResponseDto,

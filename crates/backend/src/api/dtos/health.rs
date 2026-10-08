@@ -40,6 +40,15 @@ pub struct HealthSummaryResponseDto {
     pub elasticsearch: ComponentHealthDto,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct StatsResponseDto {
+    pub total_documents: u64,
+    pub total_size_bytes: u64,
+    pub types: std::collections::HashMap<String, u64>,
+    pub languages: std::collections::HashMap<String, u64>,
+    pub indexed_folders: u64,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
