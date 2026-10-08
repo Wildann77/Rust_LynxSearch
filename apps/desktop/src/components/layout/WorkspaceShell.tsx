@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { toast } from 'sonner';
 import { TopBar } from './TopBar';
 import { FacetSidebar } from './FacetSidebar';
 import { ResultsPane } from './ResultsPane';
@@ -8,10 +9,17 @@ import { BottomStatusBar } from './BottomStatusBar';
 import { JobProgressIndicator } from '../jobs/JobProgressIndicator';
 import { FolderManagerModal } from '../modals/FolderManagerModal';
 import { SettingsModal } from '../modals/SettingsModal';
-import { Toaster } from 'sonner';
+import { StatsModal } from '../modals/StatsModal';
+import { OpenWithModal } from '../modals/OpenWithModal';
+import { ConnectionBanner } from '../common/ConnectionBanner';
+import { LynxToaster } from '../ui/LynxToaster';
 import { TooltipProvider } from '../ui/tooltip';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
+import { useDocumentDetailQuery } from '../../hooks/useDocumentQuery';
 import { useUIStore } from '../../stores/uiStore';
+import { useSearchStore } from '../../stores/searchStore';
+import { computeFullPath } from '../../lib/path';
+import { openFileInEditor, copyTextToClipboard } from '../../lib/desktop-bridge';
 import { cn } from '../../lib/utils';
 
 export interface WorkspaceShellProps {
@@ -21,9 +29,44 @@ export interface WorkspaceShellProps {
 export function WorkspaceShell({ className }: WorkspaceShellProps) {
   const searchInputRef = React.useRef<HTMLInputElement | null>(null);
   const previewCollapsed = useUIStore((state) => state.previewCollapsed);
+  const selectedDocId = useSearchStore((state) => state.selectedDocId);
 
-  // Hook global keyboard navigation (Cmd+K, /, [, ], Escape)
-  useKeyboardShortcuts({ searchInputRef });
+  const { data: activeDoc } = useDocumentDetailQuery(selectedDocId);
+
+  const handleOpenSelectedFile = React.useCallback(async () => {
+    if (!activeDoc) return;
+    const fullPath = computeFullPath(activeDoc.folder_root_path, activeDoc.relative_path);
+    const preferredEditor = useUIStore.getState().preferredEditor;
+    if (preferredEditor) {
+      try {
+        await openFileInEditor(fullPath, preferredEditor);
+        toast.info(`Membuka berkas di ${preferredEditor}...`);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Gagal membuka berkas';
+        toast.error(`Gagal membuka berkas: ${msg}`);
+      }
+    } else {
+      useUIStore.getState().openWith(fullPath);
+    }
+  }, [activeDoc]);
+
+  const handleCopySelectedPath = React.useCallback(async () => {
+    if (!activeDoc) return;
+    const fullPath = computeFullPath(activeDoc.folder_root_path, activeDoc.relative_path);
+    try {
+      await copyTextToClipboard(fullPath);
+      toast.success('Path berkas disalin ke clipboard');
+    } catch {
+      toast.error('Gagal menyalin path ke clipboard');
+    }
+  }, [activeDoc]);
+
+  // Hook global keyboard navigation (Cmd+K, /, [, ], Escape, Cmd+O, Cmd+Shift+C)
+  useKeyboardShortcuts({
+    searchInputRef,
+    onOpenSelectedFile: handleOpenSelectedFile,
+    onCopySelectedPath: handleCopySelectedPath,
+  });
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -35,6 +78,9 @@ export function WorkspaceShell({ className }: WorkspaceShellProps) {
       >
         {/* Top Application Bar */}
         <TopBar searchInputRef={searchInputRef} />
+
+        {/* Persistent Connection Outage Banner */}
+        <ConnectionBanner />
 
         {/* 3-Pane Main Workspace */}
         <main className="flex flex-1 min-h-0 w-full overflow-hidden">
@@ -60,9 +106,11 @@ export function WorkspaceShell({ className }: WorkspaceShellProps) {
         {/* Dialog Overlays */}
         <FolderManagerModal />
         <SettingsModal />
+        <StatsModal />
+        <OpenWithModal />
 
         {/* Global Notifications Toast */}
-        <Toaster theme="dark" position="bottom-right" richColors />
+        <LynxToaster />
       </div>
     </TooltipProvider>
   );
