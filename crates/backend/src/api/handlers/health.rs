@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 
 use crate::api::dtos::{
     ComponentHealthDto, HealthSummaryResponseDto, LivenessResponseDto, ReadinessResponseDto,
+    StatsResponseDto,
 };
 use crate::state::AppState;
 
@@ -138,13 +139,119 @@ pub async fn health_ready(State(state): State<AppState>) -> impl IntoResponse {
 }
 
 /// GET /api/stats
-/// Placeholder metrik sistem.
-pub async fn stats(_state: State<AppState>) -> impl IntoResponse {
-    Json(serde_json::json!({
-        "total_documents": 0,
-        "total_size_bytes": 0,
-        "types": {},
-        "languages": {},
-        "indexed_folders": 0
-    }))
+/// Mengambil statistik aktual dari PostgreSQL (folders, document_registry)
+/// dan Elasticsearch (agregasi distribusi types & languages).
+pub async fn stats(State(state): State<AppState>) -> impl IntoResponse {
+    let mut total_documents = 0u64;
+    let mut total_size_bytes = 0u64;
+    let mut indexed_folders = 0u64;
+    let mut types = std::collections::HashMap::new();
+    let mut languages = std::collections::HashMap::new();
+
+    // 1. Ambil jumlah folder terdaftar dari database
+    if let Ok(folders_count) = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM folders")
+        .fetch_one(&state.db_pool)
+        .await
+    {
+        indexed_folders = folders_count.max(0) as u64;
+    }
+
+    // 2. Ambil dokumen terindeks dan ukuran total dari document_registry
+    if let Ok(row) = sqlx::query_as::<_, (i64, i64)>(
+        "SELECT 
+            COUNT(*) FILTER (WHERE status = 'INDEXED'),
+            COALESCE(SUM(file_size_bytes) FILTER (WHERE status = 'INDEXED'), 0)
+         FROM document_registry",
+    )
+    .fetch_one(&state.db_pool)
+    .await
+    {
+        total_documents = row.0.max(0) as u64;
+        total_size_bytes = row.1.max(0) as u64;
+    }
+
+    // 3. Ambil agregasi tipe & bahasa dari Elasticsearch
+    let search_target = state.repositories.search.search_alias();
+    let aggs_query = serde_json::json!({
+        "size": 0,
+        "aggs": {
+            "types": {
+                "terms": {
+                    "field": "type",
+                    "size": 100
+                }
+            },
+            "languages": {
+                "terms": {
+                    "field": "language",
+                    "size": 100
+                }
+            }
+        }
+    });
+
+    if let Ok(response) = state
+        .es_client
+        .search(elasticsearch::SearchParts::Index(&[search_target]))
+        .body(&aggs_query)
+        .send()
+        .await
+        && response.status_code().is_success()
+        && let Ok(json) = response.json::<serde_json::Value>().await
+    {
+        // Fallback total_documents jika Postgres 0 tapi ES memiliki dokumen
+        if total_documents == 0
+            && let Some(es_total) = json
+                .get("hits")
+                .and_then(|h| h.get("total"))
+                .and_then(|t| t.get("value"))
+                .and_then(|v| v.as_u64())
+        {
+            total_documents = es_total;
+        }
+
+        if let Some(aggs) = json.get("aggregations") {
+            if let Some(types_buckets) = aggs
+                .get("types")
+                .and_then(|t| t.get("buckets"))
+                .and_then(|b| b.as_array())
+            {
+                for bucket in types_buckets {
+                    if let (Some(key), Some(count)) = (
+                        bucket.get("key").and_then(|k| k.as_str()),
+                        bucket.get("doc_count").and_then(|c| c.as_u64()),
+                    ) && !key.trim().is_empty()
+                    {
+                        types.insert(key.to_string(), count);
+                    }
+                }
+            }
+
+            if let Some(lang_buckets) = aggs
+                .get("languages")
+                .and_then(|l| l.get("buckets"))
+                .and_then(|b| b.as_array())
+            {
+                for bucket in lang_buckets {
+                    if let (Some(key), Some(count)) = (
+                        bucket.get("key").and_then(|k| k.as_str()),
+                        bucket.get("doc_count").and_then(|c| c.as_u64()),
+                    ) && !key.trim().is_empty()
+                    {
+                        languages.insert(key.to_string(), count);
+                    }
+                }
+            }
+        }
+    }
+
+    let stats_dto = StatsResponseDto {
+        total_documents,
+        total_size_bytes,
+        types,
+        languages,
+        indexed_folders,
+    };
+
+    (StatusCode::OK, Json(stats_dto))
 }
