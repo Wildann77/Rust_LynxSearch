@@ -3,17 +3,82 @@ use tauri::Manager;
 static TARGET_ZOOM: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 #[tauri::command]
-fn open_file_in_editor(path: String) -> Result<(), String> {
+fn open_file_in_editor(path: String, editor_cmd: Option<String>) -> Result<(), String> {
+    let resolved_cmd = editor_cmd
+        .filter(|c| !c.trim().is_empty())
+        .or_else(|| std::env::var("VISUAL").ok().filter(|c| !c.trim().is_empty()))
+        .or_else(|| std::env::var("EDITOR").ok().filter(|c| !c.trim().is_empty()));
+
+    if let Some(cmd) = resolved_cmd {
+        match cmd.as_str() {
+            "default" => {
+                return tauri_plugin_opener::open_path(&path, None::<&str>).map_err(|e| e.to_string());
+            }
+            "antigravity-ide" => {
+                if std::process::Command::new("antigravity-ide").args(["-r", &path]).spawn().is_ok()
+                    || std::process::Command::new("antigravity-ide").arg(&path).spawn().is_ok()
+                {
+                    return Ok(());
+                }
+            }
+            "code" => {
+                if std::process::Command::new("code").args(["-r", &path]).spawn().is_ok()
+                    || std::process::Command::new("code").arg(&path).spawn().is_ok()
+                    || std::process::Command::new("antigravity-ide").args(["-r", &path]).spawn().is_ok()
+                {
+                    return Ok(());
+                }
+            }
+            "gnome-text-editor" => {
+                if std::process::Command::new("gnome-text-editor").arg(&path).spawn().is_ok() {
+                    return Ok(());
+                }
+            }
+            custom => {
+                let parts: Vec<&str> = custom.split_whitespace().collect();
+                if let Some((bin, args)) = parts.split_first()
+                    && std::process::Command::new(bin)
+                        .args(args)
+                        .arg(&path)
+                        .spawn()
+                        .is_ok()
+                {
+                    return Ok(());
+                }
+            }
+        }
+    }
+
+    // Default cascading fallbacks
+    if std::process::Command::new("antigravity-ide").args(["-r", &path]).spawn().is_ok()
+        || std::process::Command::new("antigravity-ide").arg(&path).spawn().is_ok()
+    {
+        return Ok(());
+    }
+    if std::process::Command::new("code").args(["-r", &path]).spawn().is_ok()
+        || std::process::Command::new("code").arg(&path).spawn().is_ok()
+    {
+        return Ok(());
+    }
+    if std::process::Command::new("gnome-text-editor").arg(&path).spawn().is_ok() {
+        return Ok(());
+    }
+
     tauri_plugin_opener::open_path(&path, None::<&str>).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn reveal_file_in_folder(path: String) -> Result<(), String> {
+    tauri_plugin_opener::reveal_item_in_dir(&path).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn focus_window(window: tauri::WebviewWindow) -> Result<(), String> {
     let _ = window.set_always_on_top(false);
     let _ = window.unminimize();
-    let _ = window.show();
     window.set_focus().map_err(|e| e.to_string())
 }
+
 
 #[tauri::command]
 fn set_desktop_zoom(window: tauri::WebviewWindow, scale: f64) -> Result<(), String> {
@@ -56,9 +121,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(window) = app.get_webview_window("main") {
-                let _ = window.set_always_on_top(false);
                 let _ = window.unminimize();
-                let _ = window.show();
                 let _ = window.set_focus();
             }
         }))
@@ -69,6 +132,7 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .invoke_handler(tauri::generate_handler![
             open_file_in_editor,
+            reveal_file_in_folder,
             pick_folder,
             focus_window,
             set_desktop_zoom
