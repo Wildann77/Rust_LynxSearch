@@ -114,6 +114,7 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
           onChange={(e) => setRawQuery(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Search code, docs, tags... (Press / or ⌘K)"
+          aria-label="Pencarian dokumen, kode, dan tag"
           className="flex-1 min-w-[120px] bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-hidden focus:outline-hidden"
           spellCheck={false}
           autoComplete="off"
