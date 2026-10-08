@@ -71,12 +71,23 @@ export const ResultCard = React.forwardRef<HTMLDivElement, ResultCardProps>(
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
-            <span
-              data-testid="result-score"
-              className="font-mono text-[10px] text-muted-foreground bg-secondary/60 px-1.5 py-0.5 rounded border border-border/50"
+            <div
+              data-testid="relevance-indicator"
+              className="flex items-center gap-1 rounded bg-secondary/60 border border-border/50 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground"
+              title={`BM25 Relevance Score: ${formatScore(item.score)}`}
             >
-              Score {formatScore(item.score)}
-            </span>
+              <span
+                className={cn(
+                  'h-1.5 w-1.5 rounded-full',
+                  item.score > 5
+                    ? 'bg-emerald-400'
+                    : item.score > 2
+                      ? 'bg-blue-400'
+                      : 'bg-neutral-400',
+                )}
+              />
+              <span data-testid="result-score">Score {formatScore(item.score)}</span>
+            </div>
           </div>
         </div>
 
