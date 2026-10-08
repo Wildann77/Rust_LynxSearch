@@ -10,6 +10,7 @@ export interface BottomStatusBarProps {
 export function BottomStatusBar({ className }: BottomStatusBarProps) {
   const indexingJobId = useUIStore((state) => state.indexingJobId);
   const toggleJobDrawer = useUIStore((state) => state.toggleJobDrawer);
+  const setStatsModalOpen = useUIStore((state) => state.setStatsModalOpen);
   const { data: health } = useHealthQuery({ refetchInterval: 15_000 });
   const { data: job } = useJobQuery(indexingJobId);
 
@@ -55,6 +56,20 @@ export function BottomStatusBar({ className }: BottomStatusBarProps) {
           <kbd className="rounded border border-border bg-secondary px-1 py-0.2 text-[10px]">]</kbd>
           <span>Preview</span>
         </span>
+
+        <span className="text-border hidden xl:inline">•</span>
+
+        <span className="hidden xl:flex items-center gap-1">
+          <kbd className="rounded border border-border bg-secondary px-1 py-0.2 text-[10px]">⌘O</kbd>
+          <span>Open</span>
+        </span>
+
+        <span className="text-border hidden 2xl:inline">•</span>
+
+        <span className="hidden 2xl:flex items-center gap-1">
+          <kbd className="rounded border border-border bg-secondary px-1 py-0.2 text-[10px]">⌘⇧C</kbd>
+          <span>Copy Path</span>
+        </span>
       </div>
 
       {/* Right: Runtime Info / Job Status */}
@@ -63,16 +78,23 @@ export function BottomStatusBar({ className }: BottomStatusBarProps) {
           <button
             type="button"
             onClick={toggleJobDrawer}
-            className="text-amber-400 font-semibold flex items-center gap-1.5 animate-pulse hover:opacity-80 cursor-pointer focus:outline-none"
+            className="text-amber-400 font-semibold flex items-center gap-1.5 animate-pulse hover:opacity-80 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded px-1"
             title="Klik untuk membuka/menutup rincian progres pekerjaan"
+            aria-label={`Progres Indexing: ${job.processed_files} dari ${job.total_files} berkas`}
           >
             <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
             <span>Indexing: {job.processed_files}/{job.total_files} files</span>
           </button>
         ) : (
-          <span className="text-[10px] text-muted-foreground/80">
+          <button
+            type="button"
+            onClick={() => setStatsModalOpen(true)}
+            className="text-[10px] text-muted-foreground/80 hover:text-foreground cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded px-1"
+            title="Klik untuk membuka statistik indeks"
+            aria-label="Buka statistik indeks"
+          >
             {health?.status === 'ok' ? 'ES 8.19 + Postgres Connected' : 'Ready'}
-          </span>
+          </button>
         )}
       </div>
     </footer>
