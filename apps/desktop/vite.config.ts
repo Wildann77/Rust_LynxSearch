@@ -67,5 +67,8 @@ export default defineConfig({
     strictPort: true,
     host: '127.0.0.1',
     hmr: { overlay: true },
+    watch: {
+      ignored: ['**/target/**', '**/.git/**', '**/crates/**', '**/docker/**'],
+    },
   },
 });
