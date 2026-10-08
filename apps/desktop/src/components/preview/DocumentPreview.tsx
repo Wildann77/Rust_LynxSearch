@@ -4,22 +4,26 @@ import remarkGfm from 'remark-gfm';
 import {
   FileText,
   ExternalLink,
+  FolderOpen,
   Copy,
   X,
   AlertCircle,
   RefreshCw,
   Code2,
   FileCode,
+  ChevronDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useDocumentDetailQuery } from '../../hooks/useDocumentQuery';
 import { useSearchStore } from '../../stores/searchStore';
+import { useUIStore } from '../../stores/uiStore';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { Skeleton } from '../ui/skeleton';
 import { formatBytes } from '../../lib/format';
-import { openFileInEditor, copyTextToClipboard } from '../../lib/desktop-bridge';
+import { computeFullPath } from '../../lib/path';
+import { openFileInEditor, copyTextToClipboard, revealFileInFolder } from '../../lib/desktop-bridge';
 import { cn } from '../../lib/utils';
 
 export interface DocumentPreviewProps {
@@ -45,15 +49,7 @@ export function DocumentPreview({ documentId, onClose, className }: DocumentPrev
 
   const fullPath = React.useMemo(() => {
     if (!doc) return '';
-    const root = doc.folder_root_path;
-    const rel = doc.relative_path;
-    const isWindows = root.includes('\\') || /^[a-zA-Z]:[/\\]/.test(root);
-    const normalizedRel = isWindows ? rel.replace(/\//g, '\\') : rel.replace(/\\/g, '/');
-    const separator = isWindows ? '\\' : '/';
-    if (root.endsWith('/') || root.endsWith('\\')) {
-      return `${root}${normalizedRel}`;
-    }
-    return `${root}${separator}${normalizedRel}`;
+    return computeFullPath(doc.folder_root_path, doc.relative_path);
   }, [doc]);
 
   const handleCopyPath = React.useCallback(async () => {
@@ -79,14 +75,37 @@ export function DocumentPreview({ documentId, onClose, className }: DocumentPrev
     }
   }, [doc]);
 
+  const preferredEditor = useUIStore((state) => state.preferredEditor);
+  const openWith = useUIStore((state) => state.openWith);
+
   const handleOpenEditor = React.useCallback(async () => {
     if (!fullPath) return;
+    if (preferredEditor) {
+      try {
+        await openFileInEditor(fullPath, preferredEditor);
+        toast.info(`Membuka berkas di ${preferredEditor}...`);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : typeof err === 'string' ? err : 'Akses ditolak atau berkas tidak ditemukan';
+        toast.error(`Gagal membuka berkas: ${msg}`);
+      }
+    } else {
+      openWith(fullPath);
+    }
+  }, [fullPath, preferredEditor, openWith]);
+
+  const handleOpenWithDialog = React.useCallback(() => {
+    if (!fullPath) return;
+    openWith(fullPath);
+  }, [fullPath, openWith]);
+
+  const handleRevealFolder = React.useCallback(async () => {
+    if (!fullPath) return;
     try {
-      await openFileInEditor(fullPath);
-      toast.info('Membuka berkas di editor sistem...');
+      await revealFileInFolder(fullPath);
+      toast.info('Membuka direktori di sistem file manager...');
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : typeof err === 'string' ? err : 'Akses ditolak atau berkas tidak ditemukan';
-      toast.error(`Gagal membuka berkas: ${msg}`);
+      const msg = err instanceof Error ? err.message : typeof err === 'string' ? err : 'Gagal menampilkan folder';
+      toast.error(`Gagal menampilkan folder: ${msg}`);
     }
   }, [fullPath]);
 
@@ -96,7 +115,7 @@ export function DocumentPreview({ documentId, onClose, className }: DocumentPrev
       const isCmd = event.metaKey || event.ctrlKey;
       if (isCmd && event.shiftKey && event.key.toLowerCase() === 'c') {
         event.preventDefault();
-        void handleCopyContent();
+        void handleCopyPath();
         return;
       }
       if (isCmd && !event.shiftKey && event.key.toLowerCase() === 'o') {
@@ -108,7 +127,7 @@ export function DocumentPreview({ documentId, onClose, className }: DocumentPrev
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleCopyContent, handleOpenEditor]);
+  }, [handleCopyPath, handleOpenEditor]);
 
   // Helper renderer for highlighted code lines
   const renderHighlightedLine = React.useCallback(
@@ -176,11 +195,19 @@ export function DocumentPreview({ documentId, onClose, className }: DocumentPrev
         <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-destructive/10 border border-destructive/20 text-destructive mb-3">
           <AlertCircle className="h-6 w-6" />
         </div>
-        <h3 className="text-sm font-semibold text-foreground mb-1">Gagal Memuat Dokumen</h3>
+        <div className="flex items-center gap-2 mb-1">
+          <h3 className="text-sm font-semibold text-foreground">Gagal Memuat Dokumen</h3>
+          <span
+            data-testid="doc-error-code"
+            className="font-mono text-[9px] bg-destructive/20 border border-destructive/30 text-destructive-foreground px-1.5 py-0.5 rounded font-medium"
+          >
+            ERR_DOC_FETCH_FAILED
+          </span>
+        </div>
         <p className="text-xs text-muted-foreground max-w-xs mb-4">
           {error?.message || 'Dokumen tidak ditemukan atau tidak dapat diakses.'}
         </p>
-        <Button variant="outline" size="sm" onClick={() => void refetch()} className="gap-1.5">
+        <Button variant="outline" size="sm" onClick={() => void refetch()} className="gap-1.5 cursor-pointer">
           <RefreshCw className="h-3.5 w-3.5" />
           <span>Coba Lagi</span>
         </Button>
@@ -224,19 +251,53 @@ export function DocumentPreview({ documentId, onClose, className }: DocumentPrev
 
         {/* Action Buttons */}
         <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center -space-x-px">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleOpenEditor}
+                  className="h-7 w-7 text-muted-foreground hover:text-foreground cursor-pointer rounded-r-none border-r border-border/40"
+                  aria-label="Open in Editor (Cmd+O)"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                Open in Editor (⌘O){preferredEditor ? ` [${preferredEditor}]` : ''}
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleOpenWithDialog}
+                  className="h-7 w-4 text-muted-foreground hover:text-foreground cursor-pointer rounded-l-none px-0"
+                  aria-label="Buka Dengan (Pilih Editor)"
+                >
+                  <ChevronDown className="h-2.5 w-2.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Buka Dengan (Pilih Editor)...</TooltipContent>
+            </Tooltip>
+          </div>
+
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={handleOpenEditor}
+                onClick={handleRevealFolder}
                 className="h-7 w-7 text-muted-foreground hover:text-foreground cursor-pointer"
-                aria-label="Open in Editor (Cmd+O)"
+                aria-label="Tampilkan di Folder"
               >
-                <ExternalLink className="h-3.5 w-3.5" />
+                <FolderOpen className="h-3.5 w-3.5" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="bottom">Open in Editor (⌘O)</TooltipContent>
+            <TooltipContent side="bottom">Tampilkan di Folder</TooltipContent>
           </Tooltip>
 
           <Tooltip>
