@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
-import { openPath } from '@tauri-apps/plugin-opener';
+import { openPath, revealItemInDir } from '@tauri-apps/plugin-opener';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 
 export function isTauriEnvironment(): boolean {
@@ -45,10 +45,10 @@ export async function pickDirectory(): Promise<string | null> {
   return null;
 }
 
-export async function openFileInEditor(path: string): Promise<void> {
+export async function openFileInEditor(path: string, editorCmd?: string | null): Promise<void> {
   if (isTauriEnvironment()) {
     try {
-      await invoke('open_file_in_editor', { path });
+      await invoke('open_file_in_editor', { path, editorCmd: editorCmd || null });
       return;
     } catch (invokeErr) {
       console.warn('[LynxSearch] invoke open_file_in_editor failed, falling back to openPath:', invokeErr);
@@ -57,6 +57,29 @@ export async function openFileInEditor(path: string): Promise<void> {
         return;
       } catch (openerErr) {
         console.error('[LynxSearch] openFileInEditor failed via both methods:', openerErr);
+        throw openerErr;
+      }
+    }
+  }
+
+  // Graceful web fallback
+  if (typeof window !== 'undefined') {
+    window.open(`file://${path}`, '_blank');
+  }
+}
+
+export async function revealFileInFolder(path: string): Promise<void> {
+  if (isTauriEnvironment()) {
+    try {
+      await invoke('reveal_file_in_folder', { path });
+      return;
+    } catch (invokeErr) {
+      console.warn('[LynxSearch] invoke reveal_file_in_folder failed, falling back to revealItemInDir:', invokeErr);
+      try {
+        await revealItemInDir(path);
+        return;
+      } catch (openerErr) {
+        console.error('[LynxSearch] revealFileInFolder failed via both methods:', openerErr);
         throw openerErr;
       }
     }
@@ -98,6 +121,7 @@ export async function focusWindow(): Promise<void> {
     }
   }
 }
+
 
 export async function setDesktopZoom(scale: number): Promise<void> {
   if (isTauriEnvironment()) {
