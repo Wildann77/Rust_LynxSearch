@@ -27,3 +27,14 @@ export const UpdateSettingsRequestSchema = z.object({
   ignore_patterns: z.array(z.string()).optional(),
 });
 export type UpdateSettingsRequest = z.infer<typeof UpdateSettingsRequestSchema>;
+
+export const DEFAULT_SETTINGS: AppSettings = {
+  max_file_size_bytes: 2 * 1024 * 1024,
+  weights: {
+    title: 3.0,
+    tags: 2.0,
+    content: 1.0,
+  },
+  ignore_patterns: ['.git', 'node_modules', 'target', 'dist', 'build'],
+};
+
