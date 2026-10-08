@@ -1,49 +1,105 @@
-import { useEffect, type RefObject } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
 import { useUIStore } from '../stores/uiStore';
+import { useSearchStore } from '../stores/searchStore';
 
 export interface UseKeyboardShortcutsOptions {
   searchInputRef?: RefObject<HTMLInputElement | null>;
+  onOpenSelectedFile?: () => void;
+  onCopySelectedPath?: () => void;
 }
 
 export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions = {}) {
-  const { toggleSidebar, togglePreview, folderModalOpen, settingsModalOpen, setFolderModalOpen, setSettingsModalOpen } = useUIStore();
+  const optionsRef = useRef(options);
+
+  useEffect(() => {
+    optionsRef.current = options;
+  }, [options]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
+      const currentOpts = optionsRef.current;
       const activeEl = document.activeElement;
       const isInputActive =
         activeEl instanceof HTMLInputElement ||
         activeEl instanceof HTMLTextAreaElement ||
         (activeEl instanceof HTMLElement && activeEl.isContentEditable);
 
-      // Escape key behavior
+      const isCmd = event.metaKey || event.ctrlKey;
+      const ui = useUIStore.getState();
+      const search = useSearchStore.getState();
+
+      // 1. Contextual Escape key hierarchy
       if (event.key === 'Escape') {
-        if (folderModalOpen) {
-          setFolderModalOpen(false);
+        if (ui.folderModalOpen) {
+          event.preventDefault();
+          ui.setFolderModalOpen(false);
           return;
         }
-        if (settingsModalOpen) {
-          setSettingsModalOpen(false);
+        if (ui.settingsModalOpen) {
+          event.preventDefault();
+          ui.setSettingsModalOpen(false);
+          return;
+        }
+        if (ui.statsModalOpen) {
+          event.preventDefault();
+          ui.setStatsModalOpen(false);
+          return;
+        }
+        if (ui.jobDrawerExpanded) {
+          event.preventDefault();
+          ui.setJobDrawerExpanded(false);
           return;
         }
         if (isInputActive && activeEl instanceof HTMLElement) {
-          activeEl.blur();
+          event.preventDefault();
+          if (search.rawQuery) {
+            search.setRawQuery('');
+          } else {
+            activeEl.blur();
+          }
+          return;
+        }
+        if (!ui.previewCollapsed) {
+          event.preventDefault();
+          ui.setPreviewCollapsed(true);
+          return;
+        }
+        if (search.selectedDocId) {
+          event.preventDefault();
+          search.setSelectedDocId(null);
           return;
         }
       }
 
-      // Cmd/Ctrl + K or / to focus search
-      const isCmdK = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k';
-      const isSlash = event.key === '/' && !isInputActive && !event.metaKey && !event.ctrlKey && !event.altKey;
+      // 2. Cmd/Ctrl + K or / to focus search input
+      const isCmdK = isCmd && event.key.toLowerCase() === 'k';
+      const isSlash = event.key === '/' && !isInputActive && !isCmd && !event.altKey;
 
       if (isCmdK || isSlash) {
         event.preventDefault();
-        options.searchInputRef?.current?.focus();
-        options.searchInputRef?.current?.select();
+        currentOpts.searchInputRef?.current?.focus();
+        currentOpts.searchInputRef?.current?.select();
         return;
       }
 
-      // If typing in input, ignore single-character shortcuts
+      // 3. Document Action Shortcuts (Cmd+O: Open Editor, Cmd+Shift+C: Copy Path)
+      if (isCmd && event.shiftKey && event.key.toLowerCase() === 'c') {
+        if (currentOpts.onCopySelectedPath) {
+          event.preventDefault();
+          currentOpts.onCopySelectedPath();
+          return;
+        }
+      }
+
+      if (isCmd && !event.shiftKey && event.key.toLowerCase() === 'o') {
+        if (currentOpts.onOpenSelectedFile) {
+          event.preventDefault();
+          currentOpts.onOpenSelectedFile();
+          return;
+        }
+      }
+
+      // 4. Single-character shortcuts blocked when typing in text input/textarea
       if (isInputActive) {
         return;
       }
@@ -51,27 +107,19 @@ export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions = {}) 
       // [ toggles sidebar facet pane
       if (event.key === '[') {
         event.preventDefault();
-        toggleSidebar();
+        ui.toggleSidebar();
         return;
       }
 
       // ] toggles preview pane
       if (event.key === ']') {
         event.preventDefault();
-        togglePreview();
+        ui.togglePreview();
         return;
       }
     }
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [
-    options.searchInputRef,
-    toggleSidebar,
-    togglePreview,
-    folderModalOpen,
-    settingsModalOpen,
-    setFolderModalOpen,
-    setSettingsModalOpen,
-  ]);
+  }, []);
 }
