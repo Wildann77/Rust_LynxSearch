@@ -1071,55 +1071,55 @@
 
 ## 5.20 Rebuild index
 
-- [ ] `POST /api/index/rebuild`.
-- [ ] Acquire global rebuild lock.
-- [ ] Create new physical index.
-- [ ] Stream all eligible registry docs to new index.
-- [ ] Use chunks of 200 for rebuild stream.
-- [ ] Keep old alias target active during build.
-- [ ] Atomic alias swap.
-- [ ] Verify alias points to new index.
-- [ ] Remove old index.
-- [ ] Mark rebuild job complete.
-- [ ] On failure, keep old alias active and mark job failed.
-- [ ] Ensure no search downtime during successful swap.
+- [x] `POST /api/index/rebuild`.
+- [x] Acquire global rebuild lock.
+- [x] Create new physical index.
+- [x] Stream all eligible registry docs to new index.
+- [x] Use chunks of 200 for rebuild stream.
+- [x] Keep old alias target active during build.
+- [x] Atomic alias swap.
+- [x] Verify alias points to new index.
+- [x] Remove old index.
+- [x] Mark rebuild job complete.
+- [x] On failure, keep old alias active and mark job failed.
+- [x] Ensure no search downtime during successful swap.
 
 ## 5.21 Search availability during indexing
 
-- [ ] Basic searches can continue while indexing background jobs run.
-- [ ] Do not block HTTP server while scanning.
-- [ ] Verify background worker does not monopolize Tokio runtime.
+- [x] Basic searches can continue while indexing background jobs run.
+- [x] Do not block HTTP server while scanning.
+- [x] Verify background worker does not monopolize Tokio runtime.
 
 ## 5.22 Indexing tests
 
-- [ ] Unit tests: extractor.
-- [ ] Unit tests: scan planner.
-- [ ] Unit tests: deterministic IDs.
-- [ ] Integration: first import.
-- [ ] Integration: rescan unchanged.
-- [ ] Integration: changed file.
-- [ ] Integration: deleted file.
-- [ ] Integration: rename/move.
-- [ ] Integration: excluded file.
-- [ ] Integration: single failed file.
-- [ ] Integration: concurrency lock.
-- [ ] Integration: cancellation.
-- [ ] Integration: panic recovery.
-- [ ] Integration: rebuild alias.
-- [ ] Integration: restart recovery.
+- [x] Unit tests: extractor.
+- [x] Unit tests: scan planner.
+- [x] Unit tests: deterministic IDs.
+- [x] Integration: first import.
+- [x] Integration: rescan unchanged.
+- [x] Integration: changed file.
+- [x] Integration: deleted file.
+- [x] Integration: rename/move.
+- [x] Integration: excluded file.
+- [x] Integration: single failed file.
+- [x] Integration: concurrency lock.
+- [x] Integration: cancellation.
+- [x] Integration: panic recovery.
+- [x] Integration: rebuild alias.
+- [x] Integration: restart recovery.
 
 ### Phase 4 Gate
 
-- [ ] First import works end-to-end.
-- [ ] Re-scan is incremental and idempotent.
-- [ ] Deleted files disappear from search index.
-- [ ] Rename/move produces no duplicates.
-- [ ] EXCLUDED documents stay excluded.
-- [ ] Per-file failure does not kill job.
-- [ ] One active job per folder is enforced.
-- [ ] Cancellation works.
-- [ ] Rebuild uses alias swap and preserves search availability.
-- [ ] Job progress can be polled.
+- [x] First import works end-to-end.
+- [x] Re-scan is incremental and idempotent.
+- [x] Deleted files disappear from search index.
+- [x] Rename/move produces no duplicates.
+- [x] EXCLUDED documents stay excluded.
+- [x] Per-file failure does not kill job.
+- [x] One active job per folder is enforced.
+- [x] Cancellation works.
+- [x] Rebuild uses alias swap and preserves search availability.
+- [x] Job progress can be polled.
 
 ---
 
@@ -1127,116 +1127,118 @@
 
 ## 6.1 SearchQuery baseline
 
-- [ ] Implement raw query input for free-text search.
-- [ ] Normalize case for text matching through analyzer/query strategy.
-- [ ] Support multi-word query.
-- [ ] Treat quotes/special characters safely.
-- [ ] Avoid accidental query-string injection by building structured DSL.
+- [x] Implement raw query input for free-text search.
+- [x] Normalize case for text matching through analyzer/query strategy.
+- [x] Support multi-word query.
+- [x] Treat quotes/special characters safely.
+- [x] Avoid accidental query-string injection by building structured DSL.
+
 
 ## 6.2 SearchQueryBuilder baseline
 
-- [ ] Implement pure `SearchQueryBuilder`.
-- [ ] Build `multi_match`.
-- [ ] Default boosts:
-  - [ ] `title^3.0`
-  - [ ] `tags^2.0`
-  - [ ] `content^1.0`
-- [ ] Query code subfields when available.
-- [ ] Preserve `_score`.
-- [ ] Request total hit count.
-- [ ] Request highlight fragments.
-- [ ] Include relevant source fields only.
-- [ ] Build pagination.
-- [ ] Keep filters separate from scoring via `bool.filter` when advanced filters arrive.
+- [x] Implement pure `SearchQueryBuilder`.
+- [x] Build `multi_match`.
+- [x] Default boosts:
+  - [x] `title^3.0`
+  - [x] `tags^2.0`
+  - [x] `content^1.0`
+- [x] Query code subfields when available.
+- [x] Preserve `_score`.
+- [x] Request total hit count.
+- [x] Request highlight fragments.
+- [x] Include relevant source fields only.
+- [x] Build pagination.
+- [x] Keep filters separate from scoring via `bool.filter` when advanced filters arrive.
+
 
 ## 6.3 SearchRepository search
 
-- [ ] Execute generated DSL against `lynx_documents`.
-- [ ] Parse response into application result.
-- [ ] Capture Elasticsearch execution latency.
-- [ ] Map missing/down ES to `503 SEARCH_ENGINE_UNAVAILABLE`.
-- [ ] Map malformed DSL/internal errors to structured server errors.
+- [x] Execute generated DSL against `lynx_documents`.
+- [x] Parse response into application result.
+- [x] Capture Elasticsearch execution latency.
+- [x] Map missing/down ES to `503 SEARCH_ENGINE_UNAVAILABLE`.
+- [x] Map malformed DSL/internal errors to structured server errors.
 
 ## 6.4 Highlight
 
-- [ ] Configure highlight for multiple fragments.
-- [ ] Use `<em>` markers in backend response only if the output contract is fixed.
-- [ ] Preserve enough source context for UI.
-- [ ] Do not store highlight fragments as source of truth.
+- [x] Configure highlight for multiple fragments.
+- [x] Use `<em>` markers in backend response only if the output contract is fixed.
+- [x] Preserve enough source context for UI.
+- [x] Do not store highlight fragments as source of truth.
 
 ## 6.5 Safe highlight rendering
 
-- [ ] Do not inject arbitrary file content into DOM as raw HTML.
-- [ ] Parse the controlled highlight marker format into React nodes.
-- [ ] Render matched segments as semantic `<mark>` or equivalent UI.
-- [ ] Add a test proving HTML-like text inside a document is not interpreted as executable markup.
+- [x] Do not inject arbitrary file content into DOM as raw HTML.
+- [x] Parse the controlled highlight marker format into React nodes.
+- [x] Render matched segments as semantic `<mark>` or equivalent UI.
+- [x] Add a test proving HTML-like text inside a document is not interpreted as executable markup.
 
 ## 6.6 Line-number algorithm
 
-- [ ] Implement newline counting against original file content.
-- [ ] Calculate:
+- [x] Implement newline counting against original file content.
+- [x] Calculate:
   `1 + count('\n' before match offset)`.
-- [ ] Return `line_number` where appropriate.
-- [ ] Test first line, middle line, last line, multiline snippet.
-- [ ] Ensure line number is based on raw `_source.content`, not transformed rendered output.
+- [x] Return `line_number` where appropriate.
+- [x] Test first line, middle line, last line, multiline snippet.
+- [x] Ensure line number is based on raw `_source.content`, not transformed rendered output.
 
 ## 6.7 Search API
 
-- [ ] Implement `GET /api/search`.
-- [ ] Accept:
-  - [ ] `q`
-  - [ ] `page`
-  - [ ] `size`
-  - [ ] `sort` parameter reserved/compatible with later advanced sorting.
-- [ ] Return:
-  - [ ] normalized query
-  - [ ] total
-  - [ ] took_ms
-  - [ ] results
-  - [ ] facets when available
-  - [ ] warnings when available
-- [ ] Empty query handled without error.
-- [ ] Special characters handled safely.
-- [ ] Case insensitive.
-- [ ] Return 200 for normal search.
-- [ ] Validate page/size.
+- [x] Implement `GET /api/search`.
+- [x] Accept:
+  - [x] `q`
+  - [x] `page`
+  - [x] `size`
+  - [x] `sort` parameter reserved/compatible with later advanced sorting.
+- [x] Return:
+  - [x] normalized query
+  - [x] total
+  - [x] took_ms
+  - [x] results
+  - [x] facets when available
+  - [x] warnings when available
+- [x] Empty query handled without error.
+- [x] Special characters handled safely.
+- [x] Case insensitive.
+- [x] Return 200 for normal search.
+- [x] Validate page/size.
 
 ## 6.8 Basic result DTO
 
-- [ ] `id`.
-- [ ] `title`.
-- [ ] `relative_path`.
-- [ ] `project`.
-- [ ] `tags`.
-- [ ] `highlights[]`.
-- [ ] `highlights[].snippet`.
-- [ ] `highlights[].line_number`.
-- [ ] `score`.
-- [ ] Add other display-only metadata required by UI.
+- [x] `id`.
+- [x] `title`.
+- [x] `relative_path`.
+- [x] `project`.
+- [x] `tags`.
+- [x] `highlights[]`.
+- [x] `highlights[].snippet`.
+- [x] `highlights[].line_number`.
+- [x] `score`.
+- [x] Add other display-only metadata required by UI.
 
 ## 6.9 Basic search tests
 
-- [ ] `rust ownership` matches title/content.
-- [ ] Title boost affects rank.
-- [ ] Score returned.
-- [ ] Total returned.
-- [ ] Query latency returned.
-- [ ] Pagination works.
-- [ ] Empty query does not error.
-- [ ] Case insensitive.
-- [ ] Special characters do not corrupt query.
-- [ ] Highlight appears.
-- [ ] Multiple fragments appear.
-- [ ] Line number is correct.
+- [x] `rust ownership` matches title/content.
+- [x] Title boost affects rank.
+- [x] Score returned.
+- [x] Total returned.
+- [x] Query latency returned.
+- [x] Pagination works.
+- [x] Empty query does not error.
+- [x] Case insensitive.
+- [x] Special characters do not corrupt query.
+- [x] Highlight appears.
+- [x] Multiple fragments appear.
+- [x] Line number is correct.
 
 ### Phase 5 Gate
 
-- [ ] `/api/search` works against real Elasticsearch.
-- [ ] BM25 result ordering works with configured boosts.
-- [ ] Scores and latency are visible in response.
-- [ ] Highlight + line number work.
-- [ ] Pagination works.
-- [ ] Basic search tests pass.
+- [x] `/api/search` works against real Elasticsearch.
+- [x] BM25 result ordering works with configured boosts.
+- [x] Scores and latency are visible in response.
+- [x] Highlight + line number work.
+- [x] Pagination works.
+- [x] Basic search tests pass.
 
 ---
 
@@ -1244,323 +1246,331 @@
 
 ## 7.1 Frontend foundation
 
-- [ ] Configure `vite.config.ts`.
-- [ ] Add React plugin.
-- [ ] Add `@` alias.
-- [ ] Add build manual chunks:
-  - [ ] vendor-react
-  - [ ] vendor-tanstack
-  - [ ] vendor-ui
-  - [ ] vendor-markdown
-- [ ] Add Rollup visualizer.
-- [ ] Set dev server to port 5173.
-- [ ] Enable strict port.
-- [ ] Configure optimizeDeps list.
+- [x] Configure `vite.config.ts`.
+- [x] Add React plugin.
+- [x] Add `@` alias.
+- [x] Add build manual chunks:
+  - [x] vendor-react
+  - [x] vendor-tanstack
+  - [x] vendor-ui
+  - [x] vendor-markdown
+- [x] Add Rollup visualizer.
+- [x] Set dev server to port 5173.
+- [x] Enable strict port.
+- [x] Configure optimizeDeps list.
 
 ## 7.2 Tailwind + design tokens
 
-- [ ] Import Tailwind 4.3.
-- [ ] Implement `:root` light variables.
-- [ ] Implement `.dark` variables.
-- [ ] Implement `@theme`.
-- [ ] Implement typography tokens.
-- [ ] Implement Inter/system font stack.
-- [ ] Implement mono stack.
-- [ ] Implement 8px default radius.
-- [ ] Set dark as default application theme.
-- [ ] Preserve light fallback.
+- [x] Import Tailwind 4.3.
+- [x] Implement `:root` light variables.
+- [x] Implement `.dark` variables.
+- [x] Implement `@theme`.
+- [x] Implement typography tokens.
+- [x] Implement Inter/system font stack.
+- [x] Implement mono stack.
+- [x] Implement 8px default radius.
+- [x] Set dark as default application theme.
+- [x] Preserve light fallback.
 
 ## 7.3 shadcn/ui foundation
 
-- [ ] Configure `components.json`.
-- [ ] Create `src/lib/utils.ts`.
-- [ ] Implement `cn()`.
-- [ ] Add required shadcn primitives:
-  - [ ] Button
-  - [ ] Input
-  - [ ] Dialog
-  - [ ] Popover
-  - [ ] Tooltip
-  - [ ] ScrollArea
-  - [ ] Skeleton
-  - [ ] Alert
-  - [ ] Badge
-  - [ ] Checkbox
-  - [ ] Slider
-  - [ ] Select/dropdown as needed.
+- [x] Configure `components.json`.
+- [x] Create `src/lib/utils.ts`.
+- [x] Implement `cn()`.
+- [x] Add required shadcn primitives:
+  - [x] Button
+  - [x] Input
+  - [x] Dialog
+  - [x] Popover
+  - [x] Tooltip
+  - [x] ScrollArea
+  - [x] Skeleton
+  - [x] Alert
+  - [x] Badge
+  - [x] Checkbox
+  - [x] Slider
+  - [x] Select/dropdown as needed.
 
 ## 7.4 API client
 
-- [ ] Create central HTTP client in `src/lib`.
-- [ ] Centralize backend base URL.
-- [ ] Default to `http://127.0.0.1:3001`.
-- [ ] Keep configurable.
-- [ ] Implement request timeout/cancellation behavior.
-- [ ] Parse all critical responses with Zod.
-- [ ] Parse structured error responses with Zod.
+- [x] Create central HTTP client in `src/lib`.
+- [x] Centralize backend base URL.
+- [x] Default to `http://127.0.0.1:3001`.
+- [x] Keep configurable.
+- [x] Implement request timeout/cancellation behavior.
+- [x] Parse all critical responses with Zod.
+- [x] Parse structured error responses with Zod.
 
 ## 7.5 Type contracts
 
-- [ ] Mirror backend DTOs under `src/types`.
-- [ ] Add Zod schemas for:
-  - [ ] health
-  - [ ] search
-  - [ ] search result
-  - [ ] folder
-  - [ ] job
-  - [ ] document
-  - [ ] stats
-  - [ ] settings
-  - [ ] errors
-- [ ] Infer TS types from Zod where practical.
-- [ ] Keep backend/frontend field names consistent.
+- [x] Mirror backend DTOs under `src/types`.
+- [x] Add Zod schemas for:
+  - [x] health
+  - [x] search
+  - [x] search result
+  - [x] folder
+  - [x] job
+  - [x] document
+  - [x] stats
+  - [x] settings
+  - [x] errors
+- [x] Infer TS types from Zod where practical.
+- [x] Keep backend/frontend field names consistent.
 
 ## 7.6 State architecture
 
-- [ ] Create `useSearchStore`.
-- [ ] Create `useUIStore`.
-- [ ] `rawQuery` -> Zustand.
-- [ ] `activeFilters` -> Zustand.
-- [ ] `selectedDocId` -> Zustand.
-- [ ] `sidebarCollapsed` -> Zustand.
-- [ ] `theme` -> Zustand + localStorage.
-- [ ] Search results -> TanStack Query.
-- [ ] Suggestions -> TanStack Query.
-- [ ] Health -> TanStack Query polling.
-- [ ] Job progress -> TanStack Query polling.
-- [ ] Local form state -> React hooks.
+- [x] Create `useSearchStore`.
+- [x] Create `useUIStore`.
+- [x] `rawQuery` -> Zustand.
+- [x] `activeFilters` -> Zustand.
+- [x] `selectedDocId` -> Zustand.
+- [x] `sidebarCollapsed` -> Zustand.
+- [x] `theme` -> Zustand + localStorage.
+- [x] Search results -> TanStack Query.
+- [x] Suggestions -> TanStack Query.
+- [x] Health -> TanStack Query polling.
+- [x] Job progress -> TanStack Query polling.
+- [x] Local form state -> React hooks.
 
 ## 7.7 TanStack Query setup
 
-- [ ] Create QueryClient provider.
-- [ ] Search query hook.
-- [ ] Suggest query hook.
-- [ ] Health query hook.
-- [ ] Folder query/mutations.
-- [ ] Job status query.
-- [ ] Document preview query.
-- [ ] Settings query/mutation.
-- [ ] Stats query.
-- [ ] Configure search staleTime around 30s as architecture guidance.
-- [ ] Health polling around 10s.
-- [ ] Job polling around 1s when active.
-- [ ] Suggest debounce 150ms.
-- [ ] Ensure query cancellation on fast typing.
+- [x] Create QueryClient provider.
+- [x] Search query hook.
+- [x] Suggest query hook.
+- [x] Health query hook.
+- [x] Folder query/mutations.
+- [x] Job status query.
+- [x] Document preview query.
+- [x] Settings query/mutation.
+- [x] Stats query.
+- [x] Configure search staleTime around 30s as architecture guidance.
+- [x] Health polling around 10s.
+- [x] Job polling around 1s when active.
+- [x] Suggest debounce 150ms.
+- [x] Ensure query cancellation on fast typing.
 
 ## 7.8 3-pane workspace shell
 
-- [ ] Create top bar.
-- [ ] Add Tauri drag region.
-- [ ] Add global search input.
-- [ ] Add backend health dot.
-- [ ] Add Folder button.
-- [ ] Add Settings button.
-- [ ] Create left facet pane placeholder.
-- [ ] Create center results pane.
-- [ ] Create right preview pane.
-- [ ] Make preview pane resizable.
-- [ ] Constrain preview width to 420–640px.
-- [ ] Make sidebar collapsible.
-- [ ] Make preview collapsible.
-- [ ] Add bottom hotkey/status bar.
+- [x] Create top bar.
+- [x] Add Tauri drag region.
+- [x] Add global search input.
+- [x] Add backend health dot.
+- [x] Add Folder button.
+- [x] Add Settings button.
+- [x] Create left facet pane placeholder.
+- [x] Create center results pane.
+- [x] Create right preview pane.
+- [x] Make preview pane resizable.
+- [x] Constrain preview width to 420–640px.
+- [x] Make sidebar collapsible.
+- [x] Make preview collapsible.
+- [x] Add bottom hotkey/status bar.
 
 ## 7.9 SearchBar
 
-- [ ] Input global query.
-- [ ] Add `Cmd/Ctrl+K`.
-- [ ] Add `/` shortcut.
-- [ ] Add debounce.
-- [ ] Add active filter chips scaffold.
-- [ ] Show `Loader2` while search debounce/query is active where appropriate.
-- [ ] Preserve keyboard focus.
-- [ ] Do not lose query text when preview changes.
+- [x] Input global query.
+- [x] Add `Cmd/Ctrl+K`.
+- [x] Add `/` shortcut.
+- [x] Add debounce (200ms).
+- [x] Add active filter chips scaffold.
+- [x] Show `Loader2` while search debounce/query is active where appropriate.
+- [x] Preserve keyboard focus and enable seamless `ArrowDown` navigation from input into results.
+- [x] Do not lose query text when preview changes.
 
 ## 7.10 Result list
 
-- [ ] Create `ResultList`.
-- [ ] Create `ResultCard`.
-- [ ] Display:
-  - [ ] title
-  - [ ] relative path
-  - [ ] snippet
-  - [ ] score
-  - [ ] line number if present
-  - [ ] tags/metadata.
-- [ ] Add selected state.
-- [ ] Add click-to-preview.
-- [ ] Add result keyboard navigation.
-- [ ] Prepare pagination controls.
-- [ ] Preserve selected document when possible between rerenders.
+- [x] Create `ResultList`.
+- [x] Create `ResultCard`.
+- [x] Display:
+  - [x] title
+  - [x] relative path
+  - [x] snippet
+  - [x] score
+  - [x] line number if present
+  - [x] tags/metadata.
+- [x] Add selected state.
+- [x] Add click-to-preview.
+- [x] Add result keyboard navigation (`ArrowDown`/`ArrowUp` directly from input, `j`/`k` vim-navigation when unblurred, `Enter` to preview).
+- [x] Prepare pagination controls.
+- [x] Preserve selected document when possible between rerenders.
 
 ## 7.11 Preview
 
-- [ ] Create `DocumentPreview`.
-- [ ] Create preview header.
-- [ ] Add title.
-- [ ] Add relative/absolute path information as specified.
-- [ ] Add close action.
-- [ ] Add `Open in Editor`.
-- [ ] Add `Copy Path`.
-- [ ] Add Markdown rendering.
-- [ ] Add plain/code rendering placeholder that will be upgraded to virtualized viewer in Phase 8.
-- [ ] Highlight current query terms safely.
+- [x] Create `DocumentPreview`.
+- [x] Create preview header.
+- [x] Add title.
+- [x] Add relative/absolute path information as specified.
+- [x] Add close action.
+- [x] Add `Open in Editor` (dual mechanism: direct native Tauri invoke `open_file_in_editor` + scoped `opener:allow-open-path` dengan `{ path: "**" }`).
+- [x] Add `Copy Path`.
+- [x] Add Markdown rendering.
+- [x] Add plain/code rendering placeholder that will be upgraded to virtualized viewer in Phase 8.
+- [x] Highlight current query terms safely.
 
 ## 7.12 Folder Manager
 
-- [ ] Create `FolderManagerModal`.
-- [ ] Use native folder picker.
-- [ ] Add `+ Tambah Folder`.
-- [ ] Display folder path.
-- [ ] Display last scan relative time.
-- [ ] Display indexed document count.
-- [ ] Display status:
-  - [ ] IDLE
-  - [ ] INDEXING
-  - [ ] ERROR
-- [ ] Re-scan action.
-- [ ] Delete action.
-- [ ] Confirm deletion.
-- [ ] Rebuild Index action.
-- [ ] Confirm rebuild with stronger warning.
+- [x] Create `FolderManagerModal`.
+- [x] Use native folder picker.
+- [x] Add `+ Tambah Folder`.
+- [x] Display folder path.
+- [x] Display last scan relative time.
+- [x] Display indexed document count.
+- [x] Display status:
+  - [x] IDLE
+  - [x] SCANNING
+  - [x] ERROR
+- [x] Re-scan action.
+- [x] Delete action.
+- [x] Confirm deletion.
+- [x] Rebuild Index action.
+- [x] Confirm rebuild with stronger warning.
+- [x] Add dynamic polling to `useFoldersQuery` (poll every 1500ms when any folder is SCANNING).
+- [x] Implement multi-folder worker concurrency in `run_orchestrator_worker_loop` (max 2 concurrent folder scans via semaphore & joinset).
+- [x] Cross-check in-memory `is_folder_locked` in `list_folders` handler untuk jaminan status SCANNING real-time di UI.
+- [x] Native folder picker modal UX: implementasikan `pick_folder` Tauri invoke command non-blocking (async via oneshot channel callback) dengan window-parenting langsung (`builder.set_parent(&window)`) agar modal transient tetap berada di depan aplikasi utama; sertakan auto-clamp ukuran dialog GTK (`gsettings set org.gtk.Settings.FileChooser window-size '(900, 560)'`) agar tombol aksi tidak terpotong layar laptop; perbaiki `pickDirectory` agar mengembalikan `null` saat cancel tanpa memicu dialog kedua.
+- [x] Window focus & stacking: implementasikan native Tauri command `focus_window` (`unminimize` + `show` + `set_focus`), konfigurasi ACL capability `core:window:allow-set-focus`, penegakan `set_always_on_top(false)`, resolusi konflik GNOME Forge tiling (`float-always-on-top-enabled=false`), dan capture listener `mousedown` agar klik window LynxSearch dapat ditumpuk/menumpuk window lain (IDE, Terminal) secara wajar.
+- [x] Fast health reconnect: `useHealthQuery` beralih ke interval adaptif 2s saat status error/offline dan badge TopBar mendukung click-to-retry instan.
+- [x] Webview gesture safety & keyboard zoom: blokir touchpad pinch zoom pada level widget GTK via `webview.connect_event` (intercept `gdk::EventType::TouchpadPinch` -> `glib::Propagation::Stop`) serta `connect_zoom_level_notify` guard + JS capture event listeners (`wheel`, `touchstart`, `touchmove`, `gesturestart`), terapkan `touch-action: pan-x pan-y` universal, serta sediakan native desktop zoom via command `set_desktop_zoom` dengan shortcut keyboard `Ctrl + +`, `Ctrl + -`, `Ctrl + 0`.
 
 ## 7.13 Job progress
 
-- [ ] Create `JobProgressIndicator`.
-- [ ] Create banner/drawer.
-- [ ] Show progress bar.
-- [ ] Show `Processed`.
-- [ ] Show `Skipped`.
-- [ ] Show `Failed`.
-- [ ] Add cancel button.
-- [ ] Poll every 1s while running.
-- [ ] Stop polling after terminal state.
-- [ ] Show final summary.
+- [x] Create `JobProgressIndicator`.
+- [x] Create banner/drawer.
+- [x] Show progress bar.
+- [x] Show `Processed`.
+- [x] Show `Skipped`.
+- [x] Show `Failed`.
+- [x] Add cancel button.
+- [x] Poll every 1s while running.
+- [x] Stop polling after terminal state.
+- [x] Show final summary.
 
 ## 7.14 Settings
 
-- [ ] Create `SettingsModal`.
-- [ ] Numeric max file size.
-- [ ] Ignore pattern tag input.
-- [ ] BM25 title slider.
-- [ ] BM25 tag slider.
-- [ ] BM25 content slider.
-- [ ] Reset to default.
-- [ ] Save settings.
-- [ ] Persist settings through API.
-- [ ] Show saved toast.
+- [x] Create `SettingsModal`.
+- [x] Numeric max file size.
+- [x] Ignore pattern tag input.
+- [x] BM25 title slider.
+- [x] BM25 tag slider.
+- [x] BM25 content slider.
+- [x] Reset to default.
+- [x] Save settings.
+- [x] Persist settings through API.
+- [x] Show saved toast.
+
 
 ## 7.15 Stats
 
-- [ ] Add stats view/modal/panel according to workspace design.
-- [ ] Display total documents.
-- [ ] Display total size/index size as exposed by backend.
-- [ ] Display distribution by type/language.
-- [ ] Show loading/error/empty/success states.
+- [x] Add stats view/modal/panel according to workspace design.
+- [x] Display total documents.
+- [x] Display total size/index size as exposed by backend.
+- [x] Display distribution by type/language.
+- [x] Show loading/error/empty/success states.
 
 ## 7.16 Health and offline
 
-- [ ] Create health dot.
-- [ ] Green = backend healthy.
-- [ ] Yellow = indexing state as defined by UI.
-- [ ] Red = backend unavailable.
-- [ ] Create `ConnectionBanner`.
-- [ ] Create `OfflineFallback`.
-- [ ] Keep search UI usable enough to explain backend outage.
-- [ ] Retry action triggers query refetch.
+- [x] Create health dot.
+- [x] Green = backend healthy.
+- [x] Yellow = indexing state as defined by UI.
+- [x] Red = backend unavailable.
+- [x] Create `ConnectionBanner`.
+- [x] Create `OfflineFallback`.
+- [x] Keep search UI usable enough to explain backend outage.
+- [x] Retry action triggers query refetch.
 
 ## 7.17 Toasts
 
-- [ ] Create `LynxToaster`.
-- [ ] Bottom-right position.
-- [ ] Dark theme.
-- [ ] Rich colors.
-- [ ] Close button.
-- [ ] Trigger:
-  - [ ] copy success
-  - [ ] scan started
-  - [ ] settings saved
-  - [ ] job cancelled
-  - [ ] backend connection error
+- [x] Create `LynxToaster`.
+- [x] Bottom-right position.
+- [x] Dark theme.
+- [x] Rich colors.
+- [x] Close button.
+- [x] Trigger:
+  - [x] copy success
+  - [x] scan started
+  - [x] settings saved
+  - [x] job cancelled
+  - [x] backend connection error
 
 ## 7.18 Date helpers
 
-- [ ] Create `formatDateTime`.
-- [ ] Create `formatRelativeTime`.
-- [ ] Use native `Intl`.
-- [ ] Test null/undefined.
-- [ ] Test past/future dates.
+- [x] Create `formatDateTime`.
+- [x] Create `formatRelativeTime`.
+- [x] Use native `Intl`.
+- [x] Test null/undefined.
+- [x] Test past/future dates.
 
 ## 7.19 Micro-states
 
 Implement explicit states on every data-driven component.
 
-- [ ] Loading:
-  - [ ] Skeleton.
-  - [ ] Same dimensions as final card.
-  - [ ] Avoid CLS.
-- [ ] Empty:
-  - [ ] SearchX/FolderPlus.
-  - [ ] explanatory copy.
-  - [ ] clear filter action.
-- [ ] Error:
-  - [ ] alert card.
-  - [ ] user-friendly message.
-  - [ ] structured error code.
-  - [ ] retry.
-- [ ] Success:
-  - [ ] correct data.
-  - [ ] highlight.
-  - [ ] relevance indicator.
+- [x] Loading:
+  - [x] Skeleton.
+  - [x] Same dimensions as final card.
+  - [x] Avoid CLS.
+- [x] Empty:
+  - [x] SearchX/FolderPlus.
+  - [x] explanatory copy.
+  - [x] clear filter action.
+- [x] Error:
+  - [x] alert card.
+  - [x] user-friendly message.
+  - [x] structured error code.
+  - [x] retry.
+- [x] Success:
+  - [x] correct data.
+  - [x] highlight.
+  - [x] relevance indicator.
 
 ## 7.20 Keyboard navigation
 
-- [ ] `Cmd/Ctrl+K` focus search.
-- [ ] `/` focus search.
-- [ ] `Escape` close/clear contextually.
-- [ ] `ArrowDown` and `j` next result.
-- [ ] `ArrowUp` and `k` previous result.
-- [ ] `Enter` preview selected result.
-- [ ] `Cmd/Ctrl+O` open file.
-- [ ] `Cmd/Ctrl+Shift+C` copy path.
-- [ ] `[` collapse sidebar.
-- [ ] `]` collapse preview.
-- [ ] Ensure shortcuts do not fire while typing in unrelated text fields unless intended.
+- [x] `Cmd/Ctrl+K` focus search.
+- [x] `/` focus search.
+- [x] `Escape` close/clear contextually.
+- [x] `ArrowDown` and `j` next result.
+- [x] `ArrowUp` and `k` previous result.
+- [x] `Enter` preview selected result.
+- [x] `Cmd/Ctrl+O` open file.
+- [x] `Cmd/Ctrl+Shift+C` copy path.
+- [x] `[` collapse sidebar.
+- [x] `]` collapse preview.
+- [x] Ensure shortcuts do not fire while typing in unrelated text fields unless intended.
 
 ## 7.21 Tauri native operations
 
-- [ ] Dialog plugin opens native directory picker.
-- [ ] Shell plugin opens configured editor/command as specified.
-- [ ] Opener plugin opens/reveals file using native OS.
-- [ ] Window-state restores size/position.
-- [ ] Single-instance prevents multiple windows/processes.
-- [ ] Clipboard manager writes absolute path.
-- [ ] Keep permissions minimum required.
+- [x] Dialog plugin opens native directory picker.
+- [x] Shell plugin opens configured editor/command as specified.
+- [x] Opener plugin opens/reveals file using native OS.
+- [x] Window-state restores size/position.
+- [x] Single-instance prevents multiple windows/processes.
+- [x] Clipboard manager writes absolute path.
+- [x] Keep permissions minimum required.
 
 ## 7.22 Accessibility
 
-- [ ] Contrast >= 4.5:1 for normal text.
-- [ ] Relevant code/accent contrast >= 3:1.
-- [ ] Visible focus rings.
-- [ ] Icon buttons have explicit `aria-label`.
-- [ ] Correct dialog semantics.
-- [ ] Correct button/checkbox/slider labels.
-- [ ] Keyboard focus order logical.
-- [ ] Reduced-motion media query disables pulse/transition as specified.
-- [ ] Do not trap keyboard focus incorrectly.
+- [x] Contrast >= 4.5:1 for normal text.
+- [x] Relevant code/accent contrast >= 3:1.
+- [x] Visible focus rings.
+- [x] Icon buttons have explicit `aria-label`.
+- [x] Correct dialog semantics.
+- [x] Correct button/checkbox/slider labels.
+- [x] Keyboard focus order logical.
+- [x] Reduced-motion media query disables pulse/transition as specified.
+- [x] Do not trap keyboard focus incorrectly.
 
 ### Phase 6 Gate
 
-- [ ] Desktop opens as a native Tauri app.
-- [ ] Search can be typed and results rendered.
-- [ ] Result click opens preview.
-- [ ] Folder can be picked natively.
-- [ ] Folder list updates.
-- [ ] Job progress is visible.
-- [ ] Settings and stats are accessible.
-- [ ] Health/offline states are understandable.
-- [ ] Keyboard workflow works.
-- [ ] API responses are Zod-validated.
-- [ ] Four micro-states implemented on core data components.
+- [x] Desktop opens as a native Tauri app.
+- [x] Search can be typed and results rendered.
+- [x] Result click opens preview.
+- [x] Folder can be picked natively.
+- [x] Folder list updates.
+- [x] Job progress is visible.
+- [x] Settings and stats are accessible.
+- [x] Health/offline states are understandable.
+- [x] Keyboard workflow works.
+- [x] API responses are Zod-validated.
+- [x] Four micro-states implemented on core data components.
 
 ---
 
@@ -2229,7 +2239,7 @@ For `/api/documents/:id`:
 
 ## 14.6 Documents
 
-- [ ] `GET /api/documents/:id`.
+- [x] `GET /api/documents/:id`.
 - [x] `DELETE /api/documents/:id`.
 
 ## 14.7 Settings/stats
