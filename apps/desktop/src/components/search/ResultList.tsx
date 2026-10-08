@@ -2,6 +2,7 @@ import * as React from 'react';
 import {
   FileSearch,
   SearchX,
+  FolderPlus,
   AlertCircle,
   RefreshCw,
   ChevronLeft,
@@ -26,6 +27,8 @@ export interface ResultListProps {
   onRetry?: () => void;
   isSearching?: boolean;
   onClearFilters?: () => void;
+  hasFolders?: boolean;
+  onAddFolder?: () => void;
   className?: string;
 }
 
@@ -43,6 +46,8 @@ export function ResultList({
   onRetry,
   isSearching = false,
   onClearFilters,
+  hasFolders = true,
+  onAddFolder,
   className,
 }: ResultListProps) {
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -123,13 +128,21 @@ export function ResultList({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [items, selectedIndex, onSelectItem]);
 
-  // 1. Error state
+  // 1. Error state with structured error code and retry action
   if (isError) {
     return (
       <div className={cn('flex flex-col items-center justify-center p-8 text-center', className)}>
-        <div className="max-w-md w-full rounded-lg border border-destructive/30 bg-destructive/10 p-6 flex flex-col items-center gap-3 text-destructive-foreground">
+        <div className="max-w-md w-full rounded-lg border border-destructive/30 bg-destructive/10 p-6 flex flex-col items-center gap-3 text-destructive-foreground shadow-xs">
           <AlertCircle className="h-8 w-8 text-destructive shrink-0" />
-          <h3 className="text-sm font-semibold text-foreground">Kesalahan Pencarian</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-foreground">Kesalahan Pencarian</h3>
+            <span
+              data-testid="error-code-badge"
+              className="font-mono text-[10px] bg-destructive/20 border border-destructive/40 text-destructive-foreground px-1.5 py-0.5 rounded font-medium"
+            >
+              ERR_SEARCH_FAILED
+            </span>
+          </div>
           <p className="text-xs text-muted-foreground leading-relaxed">{errorMessage}</p>
           {onRetry ? (
             <Button
@@ -147,27 +160,31 @@ export function ResultList({
     );
   }
 
-  // 2. Loading Skeleton state (when loading and no items yet)
+  // 2. Loading Skeleton state: Exactly matches ResultCard dimensions to eliminate CLS
   if (isLoading && items.length === 0) {
     return (
       <div
-        className={cn('flex flex-col gap-3 p-4 w-full overflow-y-auto', className)}
+        className={cn('flex flex-col gap-2.5 p-4 w-full overflow-y-auto', className)}
         data-testid="results-skeleton"
       >
         {Array.from({ length: 5 }).map((_, i) => (
           <div
             key={i}
-            className="rounded-md border border-border/40 bg-card/40 p-4 space-y-3 animate-pulse"
+            className="rounded-md border border-border/70 bg-card/40 p-3 flex flex-col gap-2 select-none animate-pulse min-h-[114px]"
           >
-            <div className="flex items-center justify-between">
-              <div className="h-4 w-1/3 bg-muted/60 rounded" />
-              <div className="h-3 w-16 bg-muted/40 rounded" />
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <div className="h-4 w-4 rounded bg-muted/60 shrink-0" />
+                <div className="h-4 w-1/3 rounded bg-muted/50" />
+                <div className="h-3.5 w-12 rounded bg-muted/40 shrink-0" />
+              </div>
+              <div className="h-4 w-20 rounded bg-muted/40 shrink-0" />
             </div>
-            <div className="h-3 w-1/2 bg-muted/40 rounded font-mono" />
-            <div className="h-10 w-full bg-muted/30 rounded" />
-            <div className="flex items-center justify-between pt-1">
-              <div className="h-3 w-24 bg-muted/40 rounded" />
-              <div className="h-3 w-12 bg-muted/40 rounded" />
+            <div className="h-3 w-1/2 rounded bg-muted/40 font-mono" />
+            <div className="h-10 w-full rounded border border-border/30 bg-muted/20 p-2" />
+            <div className="flex items-center justify-between pt-1 border-t border-border/30">
+              <div className="h-3 w-24 rounded bg-muted/40" />
+              <div className="h-3 w-16 rounded bg-muted/40" />
             </div>
           </div>
         ))}
@@ -206,6 +223,37 @@ export function ResultList({
 
   // 4. Idle state: not searching yet and 0 items
   if (!isSearching && items.length === 0) {
+    if (!hasFolders) {
+      return (
+        <div className={cn('flex flex-1 flex-col items-center justify-center p-8 text-center', className)}>
+          <div className="max-w-md space-y-4">
+            <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-secondary/80 border border-border text-primary shadow-inner">
+              <FolderPlus className="h-6 w-6" />
+            </div>
+            <div className="space-y-1.5">
+              <h2 className="text-base font-semibold tracking-tight text-foreground">
+                Belum Ada Folder Terdaftar
+              </h2>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Daftarkan folder lokal pertama Anda untuk memulai pengindeksan dokumen teknis dan source code.
+              </p>
+            </div>
+            {onAddFolder ? (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={onAddFolder}
+                className="text-xs cursor-pointer gap-1.5"
+              >
+                <FolderPlus className="h-3.5 w-3.5" />
+                Tambah Folder
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className={cn('flex flex-1 flex-col items-center justify-center p-8 text-center', className)}>
         <div className="max-w-md space-y-4">
@@ -217,8 +265,7 @@ export function ResultList({
               Knowledge Base & Code Search
             </h2>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Type query in top search bar or press / or ⌘K to start searching markdown notes and
-              code repositories.
+              Ketik kata kunci di search bar atas atau tekan <kbd className="rounded border border-border bg-card px-1 py-0.5 text-[10px] font-mono">/</kbd> atau <kbd className="rounded border border-border bg-card px-1 py-0.5 text-[10px] font-mono">⌘K</kbd> untuk mulai mencari dokumen Markdown dan source code.
             </p>
           </div>
           <div className="inline-flex items-center gap-2 rounded-md border border-border/60 bg-secondary/40 px-3 py-1.5 text-[11px] font-mono text-muted-foreground">
