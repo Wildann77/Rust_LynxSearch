@@ -15,6 +15,10 @@ export interface UIState {
   jobDrawerExpanded: boolean;
   folderModalOpen: boolean;
   settingsModalOpen: boolean;
+  statsModalOpen: boolean;
+  preferredEditor: string | null;
+  openWithModalOpen: boolean;
+  openWithTargetPath: string | null;
 
   toggleSidebar: () => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
@@ -31,6 +35,10 @@ export interface UIState {
   setJobDrawerExpanded: (expanded: boolean) => void;
   setFolderModalOpen: (open: boolean) => void;
   setSettingsModalOpen: (open: boolean) => void;
+  setStatsModalOpen: (open: boolean) => void;
+  setPreferredEditor: (preferredEditor: string | null) => void;
+  openWith: (path: string) => void;
+  closeOpenWith: () => void;
 }
 
 export const MIN_PREVIEW_WIDTH = 420;
@@ -41,7 +49,7 @@ export const useUIStore = create<UIState>()(
   persist(
     (set) => ({
       sidebarCollapsed: false,
-      previewCollapsed: false,
+      previewCollapsed: true,
       previewWidth: DEFAULT_PREVIEW_WIDTH,
       theme: 'dark',
       activeTab: 'search',
@@ -50,6 +58,10 @@ export const useUIStore = create<UIState>()(
       jobDrawerExpanded: false,
       folderModalOpen: false,
       settingsModalOpen: false,
+      statsModalOpen: false,
+      preferredEditor: null,
+      openWithModalOpen: false,
+      openWithTargetPath: null,
 
       toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
       setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
@@ -97,6 +109,10 @@ export const useUIStore = create<UIState>()(
       setJobDrawerExpanded: (jobDrawerExpanded) => set({ jobDrawerExpanded }),
       setFolderModalOpen: (folderModalOpen) => set({ folderModalOpen }),
       setSettingsModalOpen: (settingsModalOpen) => set({ settingsModalOpen }),
+      setStatsModalOpen: (statsModalOpen) => set({ statsModalOpen }),
+      setPreferredEditor: (preferredEditor) => set({ preferredEditor }),
+      openWith: (path) => set({ openWithModalOpen: true, openWithTargetPath: path }),
+      closeOpenWith: () => set({ openWithModalOpen: false, openWithTargetPath: null }),
     }),
     {
       name: 'lynxsearch-ui-storage',
@@ -105,6 +121,7 @@ export const useUIStore = create<UIState>()(
         sidebarCollapsed: state.sidebarCollapsed,
         previewCollapsed: state.previewCollapsed,
         previewWidth: state.previewWidth,
+        preferredEditor: state.preferredEditor,
       }),
     },
   ),
