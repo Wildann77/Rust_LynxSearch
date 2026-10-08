@@ -2,15 +2,15 @@ import * as React from 'react';
 import {
   Folder,
   Settings,
+  BarChart3,
   PanelLeft,
   PanelRight,
 } from 'lucide-react';
 import { SearchBar } from '../search/SearchBar';
 import { Button } from '../ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
+import { HealthDot } from '../common/HealthDot';
 import { useUIStore } from '../../stores/uiStore';
-import { useHealthQuery } from '../../hooks/useHealthQuery';
-import { BACKEND_URL } from '../../api/config';
 import { cn } from '../../lib/utils';
 
 export interface TopBarProps {
@@ -26,30 +26,8 @@ export function TopBar({ searchInputRef, className }: TopBarProps) {
     togglePreview,
     setFolderModalOpen,
     setSettingsModalOpen,
+    setStatsModalOpen,
   } = useUIStore();
-
-  const { data: health, isLoading, isSuccess, isRefetching, refetch } = useHealthQuery({ refetchInterval: 10_000 });
-
-  // Resolve health status color and label (hindari glitch saat background refetch otomatis)
-  const isHealthy = isSuccess && health?.status === 'ok';
-  const isDegraded = isSuccess && health?.status !== 'ok';
-  const isConnecting = (isLoading && !health) || (!isSuccess && isRefetching);
-
-  const healthColor = isConnecting
-    ? 'bg-amber-400 animate-pulse'
-    : isHealthy
-      ? 'bg-[#10a37f]'
-      : isDegraded
-        ? 'bg-amber-500'
-        : 'bg-destructive';
-
-  const healthText = isConnecting
-    ? 'Connecting to backend...'
-    : isHealthy
-      ? `Backend Ready (${health?.version ?? 'v1.0.0'})`
-      : isDegraded
-        ? 'Backend Degraded (Storage Unavailable)'
-        : `Backend Offline (${BACKEND_URL.replace(/^https?:\/\//, '')})`;
 
   return (
     <header
@@ -94,30 +72,10 @@ export function TopBar({ searchInputRef, className }: TopBarProps) {
         <SearchBar ref={searchInputRef} />
       </div>
 
-      {/* Right Region: Health Dot, Folder, Settings, Preview Toggle */}
+      {/* Right Region: Health Dot, Folder, Stats, Settings, Preview Toggle */}
       <div className="flex items-center gap-1.5">
         {/* Backend Health Dot */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              onClick={() => void refetch()}
-              className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-secondary/50 cursor-pointer transition-all duration-200 focus:outline-none"
-              aria-label={`Backend Status: ${healthText}`}
-            >
-              <span className={cn('h-2.5 w-2.5 rounded-full shrink-0 transition-colors duration-300', healthColor)} />
-              <span className="hidden xl:inline-block text-[11px] font-mono text-muted-foreground truncate max-w-[140px] transition-opacity duration-200">
-                {isConnecting ? 'Connecting...' : isHealthy ? 'Ready' : 'Offline'}
-              </span>
-              {isRefetching && !isConnecting && (
-                <span className="h-1.5 w-1.5 rounded-full bg-primary/40 animate-pulse shrink-0" title="Sinkronisasi status..." />
-              )}
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" className="text-xs font-mono">
-            {healthText} (Klik untuk hubungkan ulang)
-          </TooltipContent>
-        </Tooltip>
+        <HealthDot />
 
         {/* Folder Manager Button */}
         <Tooltip>
@@ -133,6 +91,22 @@ export function TopBar({ searchInputRef, className }: TopBarProps) {
             </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom">Folder Manager</TooltipContent>
+        </Tooltip>
+
+        {/* Index Statistics Button */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setStatsModalOpen(true)}
+              className="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer"
+              aria-label="Open Index Statistics"
+            >
+              <BarChart3 className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Index Statistics</TooltipContent>
         </Tooltip>
 
         {/* Settings Button */}
