@@ -1,6 +1,8 @@
 use std::str::FromStr;
 
-use crate::api::dtos::{SearchFacetsDto, SearchRequestDto, SearchResponseDto, SearchResultItemDto};
+use crate::api::dtos::{
+    FacetBucketDto, SearchFacetsDto, SearchRequestDto, SearchResponseDto, SearchResultItemDto,
+};
 use crate::domain::models::AppSettings;
 use crate::domain::models::types::{DocumentType, FilterKey, Language};
 use crate::domain::query_parser::QueryParser;
@@ -23,27 +25,69 @@ pub async fn execute_search(
     // 2. Gabungkan filter dari query parameter URL eksplisit
     // Sesuai keputusan arsitektur: Parameter URL eksplisit menimpa atau melengkapi inline filter
     if let Some(doc_type_raw) = request.doc_type.as_deref() {
-        let clean = doc_type_raw.trim().to_lowercase();
+        let clean = doc_type_raw.trim();
         if !clean.is_empty() {
-            if DocumentType::from_str(&clean).is_ok() {
-                parsed_query.filters.insert(FilterKey::Type, clean);
-            } else {
-                parsed_query.warnings.push(format!(
-                    "Filter type '{clean}' tidak dikenali dan diabaikan."
-                ));
+            let mut valid_parts = Vec::new();
+            for part in clean.split(',') {
+                let trimmed = part.trim().to_lowercase();
+                if DocumentType::from_str(&trimmed).is_ok() {
+                    valid_parts.push(trimmed);
+                } else if !trimmed.is_empty() {
+                    parsed_query.warnings.push(format!(
+                        "Filter type '{trimmed}' tidak dikenali dan diabaikan."
+                    ));
+                }
+            }
+            if !valid_parts.is_empty() {
+                let joined = valid_parts.join(",");
+                parsed_query
+                    .filters
+                    .entry(FilterKey::Type)
+                    .and_modify(|existing| {
+                        for p in &valid_parts {
+                            if !existing.split(',').any(|x| x == p) {
+                                existing.push(',');
+                                existing.push_str(p);
+                            }
+                        }
+                    })
+                    .or_insert(joined);
             }
         }
     }
 
     if let Some(lang_raw) = request.language.as_deref() {
-        let clean = lang_raw.trim().to_lowercase();
+        let clean = lang_raw.trim();
         if !clean.is_empty() {
-            if Language::from_str(&clean).is_ok() {
-                parsed_query.filters.insert(FilterKey::Language, clean);
-            } else {
-                parsed_query.warnings.push(format!(
-                    "Filter language '{clean}' tidak dikenali dan diabaikan."
-                ));
+            let mut valid_parts = Vec::new();
+            for part in clean.split(',') {
+                let trimmed = part.trim().to_lowercase();
+                if trimmed.is_empty() {
+                    continue;
+                }
+                let lang = Language::from_str(&trimmed).expect("infallible");
+                if lang.is_known() {
+                    valid_parts.push(trimmed);
+                } else {
+                    parsed_query.warnings.push(format!(
+                        "Filter language '{trimmed}' tidak dikenali dan diabaikan."
+                    ));
+                }
+            }
+            if !valid_parts.is_empty() {
+                let joined = valid_parts.join(",");
+                parsed_query
+                    .filters
+                    .entry(FilterKey::Language)
+                    .and_modify(|existing| {
+                        for p in &valid_parts {
+                            if !existing.split(',').any(|x| x == p) {
+                                existing.push(',');
+                                existing.push_str(p);
+                            }
+                        }
+                    })
+                    .or_insert(joined);
             }
         }
     }
@@ -53,7 +97,16 @@ pub async fn execute_search(
         if !clean.is_empty() {
             parsed_query
                 .filters
-                .insert(FilterKey::Tag, clean.to_string());
+                .entry(FilterKey::Tag)
+                .and_modify(|existing| {
+                    for p in clean.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+                        if !existing.split(',').any(|x| x == p) {
+                            existing.push(',');
+                            existing.push_str(p);
+                        }
+                    }
+                })
+                .or_insert_with(|| clean.to_string());
         }
     }
 
@@ -62,7 +115,44 @@ pub async fn execute_search(
         if !clean.is_empty() {
             parsed_query
                 .filters
-                .insert(FilterKey::Project, clean.to_string());
+                .entry(FilterKey::Project)
+                .and_modify(|existing| {
+                    for p in clean.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+                        if !existing.split(',').any(|x| x == p) {
+                            existing.push(',');
+                            existing.push_str(p);
+                        }
+                    }
+                })
+                .or_insert_with(|| clean.to_string());
+        }
+    }
+
+    if let Some(ext_raw) = request.extension.as_deref() {
+        let clean = ext_raw.trim();
+        if !clean.is_empty() {
+            let mut normalized_parts = Vec::new();
+            for part in clean.split(',') {
+                let stripped = part.trim().trim_start_matches('.');
+                if !stripped.is_empty() {
+                    normalized_parts.push(stripped.to_ascii_lowercase());
+                }
+            }
+            if !normalized_parts.is_empty() {
+                let joined = normalized_parts.join(",");
+                parsed_query
+                    .filters
+                    .entry(FilterKey::Extension)
+                    .and_modify(|existing| {
+                        for p in &normalized_parts {
+                            if !existing.split(',').any(|x| x == p) {
+                                existing.push(',');
+                                existing.push_str(p);
+                            }
+                        }
+                    })
+                    .or_insert(joined);
+            }
         }
     }
 
@@ -102,6 +192,54 @@ pub async fn execute_search(
         })
         .collect();
 
+    let facets = SearchFacetsDto {
+        extensions: exec_result
+            .facets
+            .extensions
+            .into_iter()
+            .map(|b| FacetBucketDto {
+                key: b.key,
+                doc_count: b.doc_count,
+            })
+            .collect(),
+        types: exec_result
+            .facets
+            .types
+            .into_iter()
+            .map(|b| FacetBucketDto {
+                key: b.key,
+                doc_count: b.doc_count,
+            })
+            .collect(),
+        languages: exec_result
+            .facets
+            .languages
+            .into_iter()
+            .map(|b| FacetBucketDto {
+                key: b.key,
+                doc_count: b.doc_count,
+            })
+            .collect(),
+        tags: exec_result
+            .facets
+            .tags
+            .into_iter()
+            .map(|b| FacetBucketDto {
+                key: b.key,
+                doc_count: b.doc_count,
+            })
+            .collect(),
+        projects: exec_result
+            .facets
+            .projects
+            .into_iter()
+            .map(|b| FacetBucketDto {
+                key: b.key,
+                doc_count: b.doc_count,
+            })
+            .collect(),
+    };
+
     // 7. Bentuk SearchResponseDto (items dan results disediakan untuk kompatibilitas ganda)
     Ok(SearchResponseDto {
         query: request.normalized_query().unwrap_or("").to_string(),
@@ -111,7 +249,7 @@ pub async fn execute_search(
         took_ms: exec_result.took_ms,
         results: items.clone(),
         items,
-        facets: SearchFacetsDto::default(),
+        facets,
         warnings: parsed_query.warnings,
     })
 }
