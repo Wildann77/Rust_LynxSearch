@@ -317,6 +317,81 @@ impl SettingsRepository for InMemorySettingsRepository {
     }
 }
 
+pub(crate) fn levenshtein_distance(s1: &str, s2: &str) -> usize {
+    let s1_chars: Vec<char> = s1.chars().collect();
+    let s2_chars: Vec<char> = s2.chars().collect();
+    let m = s1_chars.len();
+    let n = s2_chars.len();
+    if m == 0 {
+        return n;
+    }
+    if n == 0 {
+        return m;
+    }
+
+    let mut prev_row: Vec<usize> = (0..=n).collect();
+    let mut curr_row = vec![0; n + 1];
+
+    for i in 1..=m {
+        curr_row[0] = i;
+        for j in 1..=n {
+            let cost = if s1_chars[i - 1] == s2_chars[j - 1] {
+                0
+            } else {
+                1
+            };
+            curr_row[j] = (prev_row[j] + 1)
+                .min(curr_row[j - 1] + 1)
+                .min(prev_row[j - 1] + cost);
+        }
+        prev_row.copy_from_slice(&curr_row);
+    }
+
+    prev_row[n]
+}
+
+pub(crate) fn score_term_in_field(field_text: &str, term_low: &str, base_weight: f32) -> f32 {
+    let term_len = term_low.chars().count();
+    let max_edits = if term_len <= 2 {
+        0
+    } else if term_len <= 5 {
+        1
+    } else {
+        2
+    };
+
+    let words: Vec<&str> = field_text
+        .split(|c: char| !c.is_alphanumeric() && c != '_' && c != '-')
+        .filter(|w| !w.is_empty())
+        .collect();
+
+    let mut matched_exact = false;
+    let mut matched_prefix = false;
+    let mut matched_fuzzy = false;
+
+    for w in words {
+        if w == term_low {
+            matched_exact = true;
+        } else if w.starts_with(term_low) {
+            matched_prefix = true;
+        } else if max_edits > 0 && levenshtein_distance(w, term_low) <= max_edits {
+            matched_fuzzy = true;
+        }
+    }
+
+    if matched_exact {
+        base_weight * 1.8
+    } else if matched_prefix {
+        base_weight * 0.8
+    } else if matched_fuzzy {
+        base_weight * 0.5
+    } else if field_text.contains(term_low) {
+        base_weight * 0.8
+    } else {
+        0.0
+    }
+}
+
 #[derive(Default)]
 pub struct InMemorySearchRepository {
     documents: Arc<RwLock<HashMap<DocumentId, IndexedDocument>>>,
@@ -424,20 +499,47 @@ impl SearchRepository for InMemorySearchRepository {
 
         let bool_obj = query_obj.and_then(|q| q.get("bool"));
 
-        // Extract filters
-        let mut filters: Vec<(String, String)> = Vec::new();
-        if let Some(filter_arr) = bool_obj
+        // Extract filters from post_filter (or bool.filter fallback)
+        let mut filters: Vec<(String, Vec<String>)> = Vec::new();
+        let parse_filter_node = |f: &serde_json::Value, target: &mut Vec<(String, Vec<String>)>| {
+            if let Some(term_map) = f.get("term").and_then(|t| t.as_object()) {
+                for (k, v) in term_map {
+                    if let Some(v_str) = v.as_str() {
+                        target.push((k.clone(), vec![v_str.to_string()]));
+                    }
+                }
+            }
+            if let Some(terms_map) = f.get("terms").and_then(|t| t.as_object()) {
+                for (k, v) in terms_map {
+                    if let Some(arr) = v.as_array() {
+                        let vals: Vec<String> = arr
+                            .iter()
+                            .filter_map(|x| x.as_str().map(|s| s.to_string()))
+                            .collect();
+                        target.push((k.clone(), vals));
+                    }
+                }
+            }
+        };
+
+        if let Some(post_filter) = dsl.get("post_filter") {
+            if let Some(filter_arr) = post_filter
+                .get("bool")
+                .and_then(|b| b.get("filter"))
+                .and_then(|f| f.as_array())
+            {
+                for f in filter_arr {
+                    parse_filter_node(f, &mut filters);
+                }
+            } else {
+                parse_filter_node(post_filter, &mut filters);
+            }
+        } else if let Some(filter_arr) = bool_obj
             .and_then(|b| b.get("filter"))
             .and_then(|f| f.as_array())
         {
             for f in filter_arr {
-                if let Some(term_map) = f.get("term").and_then(|t| t.as_object()) {
-                    for (k, v) in term_map {
-                        if let Some(v_str) = v.as_str() {
-                            filters.push((k.clone(), v_str.to_string()));
-                        }
-                    }
-                }
+                parse_filter_node(f, &mut filters);
             }
         }
 
@@ -459,8 +561,29 @@ impl SearchRepository for InMemorySearchRepository {
                             phrase_terms.push(q_str.to_string());
                         } else {
                             for word in q_str.split_whitespace() {
-                                free_terms.push(word.to_string());
+                                if !free_terms.contains(&word.to_string()) {
+                                    free_terms.push(word.to_string());
+                                }
                             }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Extract should queries: free terms (exact, prefix, fuzzy)
+        if let Some(should_arr) = bool_obj
+            .and_then(|b| b.get("should"))
+            .and_then(|s| s.as_array())
+        {
+            for s in should_arr {
+                if let Some(mm) = s.get("multi_match")
+                    && let Some(q_str) = mm.get("query").and_then(|q| q.as_str())
+                {
+                    for word in q_str.split_whitespace() {
+                        let w = word.to_string();
+                        if !free_terms.contains(&w) {
+                            free_terms.push(w);
                         }
                     }
                 }
@@ -469,42 +592,11 @@ impl SearchRepository for InMemorySearchRepository {
 
         let has_highlight = dsl.get("highlight").is_some();
 
-        // 2. Score and filter documents
-        let mut scored_docs: Vec<(f32, IndexedDocument, HashMap<String, Vec<String>>)> = Vec::new();
+        // 2. Score documents matching the query (for both aggregations and post-filtered hits)
+        let mut query_matched_docs: Vec<(f32, IndexedDocument, HashMap<String, Vec<String>>)> =
+            Vec::new();
 
         for doc in docs.values() {
-            let mut filter_passed = true;
-            for (field, val) in &filters {
-                let matched = match field.as_str() {
-                    "tags" => doc.tags.iter().any(|t| t.eq_ignore_ascii_case(val)),
-                    "language" => doc
-                        .language
-                        .as_ref()
-                        .map(|l| l.as_str())
-                        .unwrap_or("")
-                        .eq_ignore_ascii_case(val),
-                    "type" => doc.doc_type.as_str().eq_ignore_ascii_case(val),
-                    "project" => doc
-                        .project
-                        .as_deref()
-                        .unwrap_or("")
-                        .eq_ignore_ascii_case(val),
-                    "extension" => doc
-                        .extension
-                        .as_deref()
-                        .unwrap_or("")
-                        .eq_ignore_ascii_case(val),
-                    _ => true,
-                };
-                if !matched {
-                    filter_passed = false;
-                    break;
-                }
-            }
-            if !filter_passed {
-                continue;
-            }
-
             let mut score = 0.0f32;
             let mut matched_query = false;
 
@@ -547,21 +639,17 @@ impl SearchRepository for InMemorySearchRepository {
                     let mut terms_matched = 0;
                     for term in &free_terms {
                         let term_low = term.to_lowercase();
-                        let in_title = title_lower.contains(&term_low);
-                        let in_content = content_lower.contains(&term_low);
-                        let in_tags = tags_lower.iter().any(|t| t.contains(&term_low));
+                        let title_s = score_term_in_field(&title_lower, &term_low, 5.0);
+                        let tags_s = tags_lower
+                            .iter()
+                            .map(|t| score_term_in_field(t, &term_low, 2.0))
+                            .fold(0.0f32, f32::max);
+                        let content_s = score_term_in_field(&content_lower, &term_low, 1.0);
 
-                        if in_title || in_content || in_tags {
+                        let term_total = title_s + tags_s + content_s;
+                        if term_total > 0.0 {
                             terms_matched += 1;
-                            if in_title {
-                                score += 5.0;
-                            }
-                            if in_tags {
-                                score += 2.0;
-                            }
-                            if in_content {
-                                score += 1.0;
-                            }
+                            score += term_total;
                         }
                     }
                     if terms_matched > 0 {
@@ -590,8 +678,34 @@ impl SearchRepository for InMemorySearchRepository {
                     let content = &doc.content;
                     let content_low = content.to_lowercase();
 
+                    let token_to_find = if content_low.contains(&word_low) {
+                        Some(word_low.clone())
+                    } else {
+                        let w_len = word_low.chars().count();
+                        let max_edits = if w_len <= 2 {
+                            0
+                        } else if w_len <= 5 {
+                            1
+                        } else {
+                            2
+                        };
+                        if max_edits > 0 {
+                            content_low
+                                .split(|c: char| !c.is_alphanumeric() && c != '_' && c != '-')
+                                .filter(|w| !w.is_empty())
+                                .find(|w| levenshtein_distance(w, &word_low) <= max_edits)
+                                .map(|w| w.to_string())
+                        } else {
+                            None
+                        }
+                    };
+
+                    let Some(highlight_token) = token_to_find else {
+                        continue;
+                    };
+
                     let mut search_from = 0;
-                    while let Some(idx) = content_low[search_from..].find(&word_low) {
+                    while let Some(idx) = content_low[search_from..].find(&highlight_token) {
                         let abs_idx = search_from + idx;
                         let line_start = content[..abs_idx].rfind('\n').map(|p| p + 1).unwrap_or(0);
                         let line_end = content[abs_idx..]
@@ -602,14 +716,15 @@ impl SearchRepository for InMemorySearchRepository {
 
                         let match_in_line = abs_idx - line_start;
                         let prefix = &line_snippet[..match_in_line];
-                        let matched_orig = &line_snippet[match_in_line..match_in_line + word.len()];
-                        let suffix = &line_snippet[match_in_line + word.len()..];
+                        let matched_orig =
+                            &line_snippet[match_in_line..match_in_line + highlight_token.len()];
+                        let suffix = &line_snippet[match_in_line + highlight_token.len()..];
                         let snippet = format!("{prefix}<em>{matched_orig}</em>{suffix}");
 
                         if !content_snippets.contains(&snippet) {
                             content_snippets.push(snippet);
                         }
-                        search_from = abs_idx + word.len();
+                        search_from = abs_idx + highlight_token.len();
                         if content_snippets.len() >= 5 {
                             break;
                         }
@@ -627,10 +742,37 @@ impl SearchRepository for InMemorySearchRepository {
                     let word_low = word.to_lowercase();
                     let title = &doc.title;
                     let title_low = title.to_lowercase();
-                    if let Some(idx) = title_low.find(&word_low) {
+
+                    let token_to_find = if title_low.contains(&word_low) {
+                        Some(word_low.clone())
+                    } else {
+                        let w_len = word_low.chars().count();
+                        let max_edits = if w_len <= 2 {
+                            0
+                        } else if w_len <= 5 {
+                            1
+                        } else {
+                            2
+                        };
+                        if max_edits > 0 {
+                            title_low
+                                .split(|c: char| !c.is_alphanumeric() && c != '_' && c != '-')
+                                .filter(|w| !w.is_empty())
+                                .find(|w| levenshtein_distance(w, &word_low) <= max_edits)
+                                .map(|w| w.to_string())
+                        } else {
+                            None
+                        }
+                    };
+
+                    let Some(highlight_token) = token_to_find else {
+                        continue;
+                    };
+
+                    if let Some(idx) = title_low.find(&highlight_token) {
                         let prefix = &title[..idx];
-                        let matched_orig = &title[idx..idx + word.len()];
-                        let suffix = &title[idx + word.len()..];
+                        let matched_orig = &title[idx..idx + highlight_token.len()];
+                        let suffix = &title[idx + highlight_token.len()..];
                         let snippet = format!("{prefix}<em>{matched_orig}</em>{suffix}");
                         if !title_snippets.contains(&snippet) {
                             title_snippets.push(snippet);
@@ -642,7 +784,73 @@ impl SearchRepository for InMemorySearchRepository {
                 }
             }
 
-            scored_docs.push((score, doc.clone(), highlights));
+            query_matched_docs.push((score, doc.clone(), highlights));
+        }
+
+        // Hitung agregasi (aggs) terhadap seluruh query_matched_docs (sesuai post_filter semantics)
+        let mut ext_counts: HashMap<String, u64> = HashMap::new();
+        let mut type_counts: HashMap<String, u64> = HashMap::new();
+        let mut lang_counts: HashMap<String, u64> = HashMap::new();
+        let mut proj_counts: HashMap<String, u64> = HashMap::new();
+        let mut tag_counts: HashMap<String, u64> = HashMap::new();
+
+        for (_, doc, _) in &query_matched_docs {
+            if let Some(ext) = &doc.extension {
+                *ext_counts.entry(ext.clone()).or_insert(0) += 1;
+            }
+            *type_counts
+                .entry(doc.doc_type.as_str().to_string())
+                .or_insert(0) += 1;
+            if let Some(lang) = &doc.language {
+                *lang_counts.entry(lang.as_str().to_string()).or_insert(0) += 1;
+            }
+            if let Some(proj) = &doc.project {
+                *proj_counts.entry(proj.clone()).or_insert(0) += 1;
+            }
+            for tag in &doc.tags {
+                *tag_counts.entry(tag.clone()).or_insert(0) += 1;
+            }
+        }
+
+        // Terapkan post_filter untuk mendapatkan scored_docs (hits)
+        let mut scored_docs: Vec<(f32, IndexedDocument, HashMap<String, Vec<String>>)> = Vec::new();
+        for (score, doc, hl) in query_matched_docs {
+            let mut filter_passed = true;
+            for (field, values) in &filters {
+                let matched = match field.as_str() {
+                    "tags" => doc
+                        .tags
+                        .iter()
+                        .any(|t| values.iter().any(|v| t.eq_ignore_ascii_case(v))),
+                    "language" => doc
+                        .language
+                        .as_ref()
+                        .map(|l| l.as_str())
+                        .map(|l| values.iter().any(|v| l.eq_ignore_ascii_case(v)))
+                        .unwrap_or(false),
+                    "type" => values
+                        .iter()
+                        .any(|v| doc.doc_type.as_str().eq_ignore_ascii_case(v)),
+                    "project" => doc
+                        .project
+                        .as_deref()
+                        .map(|p| values.iter().any(|v| p.eq_ignore_ascii_case(v)))
+                        .unwrap_or(false),
+                    "extension" => doc
+                        .extension
+                        .as_deref()
+                        .map(|e| values.iter().any(|v| e.eq_ignore_ascii_case(v)))
+                        .unwrap_or(false),
+                    _ => true,
+                };
+                if !matched {
+                    filter_passed = false;
+                    break;
+                }
+            }
+            if filter_passed {
+                scored_docs.push((score, doc, hl));
+            }
         }
 
         // 3. Sorting
@@ -693,30 +901,59 @@ impl SearchRepository for InMemorySearchRepository {
 
         // 4. Pagination
         let paged: Vec<serde_json::Value> = scored_docs
-            .into_iter()
+            .iter()
             .skip(from)
             .take(size)
             .map(|(score, doc, hl)| {
                 let mut hit_obj = serde_json::json!({
                     "_id": doc.id.to_string(),
                     "_score": score,
-                    "_source": serde_json::to_value(&doc).unwrap_or_default()
+                    "_source": serde_json::to_value(doc).unwrap_or_default()
                 });
                 if !hl.is_empty() {
-                    hit_obj["highlight"] = serde_json::to_value(&hl).unwrap_or_default();
+                    hit_obj["highlight"] = serde_json::to_value(hl).unwrap_or_default();
                 }
                 hit_obj
             })
             .collect();
 
-        let json_str = serde_json::json!({
+        let to_bucket_list = |counts: HashMap<String, u64>| -> serde_json::Value {
+            let mut list: Vec<serde_json::Value> = counts
+                .into_iter()
+                .map(|(key, doc_count)| serde_json::json!({ "key": key, "doc_count": doc_count }))
+                .collect();
+            list.sort_by(|a, b| {
+                let ca = a["doc_count"].as_u64().unwrap_or(0);
+                let cb = b["doc_count"].as_u64().unwrap_or(0);
+                cb.cmp(&ca).then_with(|| {
+                    let ka = a["key"].as_str().unwrap_or("");
+                    let kb = b["key"].as_str().unwrap_or("");
+                    ka.cmp(kb)
+                })
+            });
+            serde_json::json!({ "buckets": list })
+        };
+
+        let mut res_obj = serde_json::json!({
             "took": 1,
             "hits": {
                 "total": { "value": total },
                 "hits": paged
             }
-        })
-        .to_string();
+        });
+
+        if dsl.get("aggs").is_some() {
+            let aggs_val = serde_json::json!({
+                "extensions": to_bucket_list(ext_counts),
+                "types": to_bucket_list(type_counts),
+                "languages": to_bucket_list(lang_counts),
+                "projects": to_bucket_list(proj_counts),
+                "tags": to_bucket_list(tag_counts),
+            });
+            res_obj["aggregations"] = aggs_val;
+        }
+
+        let json_str = res_obj.to_string();
 
         Ok(SearchRawResponse {
             raw_json: json_str,
@@ -724,8 +961,25 @@ impl SearchRepository for InMemorySearchRepository {
         })
     }
 
-    async fn suggest(&self, _prefix: &str, _limit: usize) -> Result<Vec<String>, AppError> {
-        Ok(Vec::new())
+    async fn suggest(&self, prefix: &str, limit: usize) -> Result<Vec<String>, AppError> {
+        let prefix_lower = prefix.trim().to_lowercase();
+        if prefix_lower.is_empty() {
+            return Ok(Vec::new());
+        }
+        let docs = self.documents.read();
+        let mut suggestions = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+        for doc in docs.values() {
+            let t = doc.title.trim();
+            if t.to_lowercase().contains(&prefix_lower) && seen.insert(t.to_lowercase()) {
+                suggestions.push(t.to_string());
+                if suggestions.len() >= limit {
+                    break;
+                }
+            }
+        }
+        suggestions.sort();
+        Ok(suggestions)
     }
 
     async fn rebuild_index_with_alias(&self, new_index: &str, alias: &str) -> Result<(), AppError> {
