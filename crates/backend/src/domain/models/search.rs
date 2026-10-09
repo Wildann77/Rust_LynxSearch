@@ -76,6 +76,28 @@ pub struct SearchHit {
     pub highlights: Vec<SearchHighlight>,
 }
 
+/// Bucket agregasi facet kategori pencarian pada layer domain.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct FacetBucket {
+    pub key: String,
+    pub doc_count: u64,
+}
+
+/// Kelompok facet pencarian lengkap (extensions, types, languages, tags, projects).
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct SearchFacets {
+    #[serde(default)]
+    pub extensions: Vec<FacetBucket>,
+    #[serde(default)]
+    pub types: Vec<FacetBucket>,
+    #[serde(default)]
+    pub languages: Vec<FacetBucket>,
+    #[serde(default)]
+    pub tags: Vec<FacetBucket>,
+    #[serde(default)]
+    pub projects: Vec<FacetBucket>,
+}
+
 /// Hasil eksekusi query pencarian terstruktur pada layer aplikasi / domain.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SearchExecutionResult {
@@ -84,6 +106,8 @@ pub struct SearchExecutionResult {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub es_took_ms: Option<u64>,
     pub hits: Vec<SearchHit>,
+    #[serde(default)]
+    pub facets: SearchFacets,
 }
 
 /// Algoritma penghitungan nomor baris presisi berdasarkan kemunculan newline sebelum offset match.
@@ -154,6 +178,18 @@ pub fn extract_line_number(content: &str, snippet: &str) -> Option<usize> {
 struct RawEsResponse {
     took: Option<u64>,
     hits: Option<RawEsHitsBlock>,
+    aggregations: Option<HashMap<String, RawEsAggregation>>,
+}
+
+#[derive(Deserialize)]
+struct RawEsAggregation {
+    buckets: Option<Vec<RawEsBucket>>,
+}
+
+#[derive(Deserialize)]
+struct RawEsBucket {
+    key: serde_json::Value,
+    doc_count: u64,
 }
 
 #[derive(Deserialize)]
@@ -352,11 +388,50 @@ pub fn parse_search_execution_result(
         });
     }
 
+    let extract_buckets = |key: &str| -> Vec<FacetBucket> {
+        parsed
+            .aggregations
+            .as_ref()
+            .and_then(|aggs| aggs.get(key))
+            .and_then(|agg| agg.buckets.as_ref())
+            .map(|buckets| {
+                buckets
+                    .iter()
+                    .filter_map(|b| {
+                        let key_str = match &b.key {
+                            serde_json::Value::String(s) => s.clone(),
+                            serde_json::Value::Number(n) => n.to_string(),
+                            serde_json::Value::Bool(bv) => bv.to_string(),
+                            _ => return None,
+                        };
+                        if key_str.is_empty() {
+                            None
+                        } else {
+                            Some(FacetBucket {
+                                key: key_str,
+                                doc_count: b.doc_count,
+                            })
+                        }
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
+    };
+
+    let facets = SearchFacets {
+        extensions: extract_buckets("extensions"),
+        types: extract_buckets("types"),
+        languages: extract_buckets("languages"),
+        tags: extract_buckets("tags"),
+        projects: extract_buckets("projects"),
+    };
+
     Ok(SearchExecutionResult {
         total,
         took_ms: client_took_ms,
         es_took_ms: parsed.took,
         hits,
+        facets,
     })
 }
 
@@ -619,5 +694,62 @@ fn beta() {
         // Title highlight: no line number
         assert_eq!(hit.highlights[2].snippet, "<em>Config</em> Loader");
         assert_eq!(hit.highlights[2].line_number, None);
+    }
+
+    #[test]
+    fn test_parse_search_execution_result_with_facets() {
+        let es_json = r#"{
+            "took": 7,
+            "hits": { "total": { "value": 3 }, "hits": [] },
+            "aggregations": {
+                "extensions": {
+                    "buckets": [
+                        { "key": "rs", "doc_count": 2 },
+                        { "key": "md", "doc_count": 1 }
+                    ]
+                },
+                "types": {
+                    "buckets": [
+                        { "key": "code", "doc_count": 2 },
+                        { "key": "doc", "doc_count": 1 }
+                    ]
+                },
+                "languages": {
+                    "buckets": [
+                        { "key": "rust", "doc_count": 2 },
+                        { "key": "markdown", "doc_count": 1 }
+                    ]
+                },
+                "tags": {
+                    "buckets": [
+                        { "key": "cli", "doc_count": 2 }
+                    ]
+                },
+                "projects": {
+                    "buckets": [
+                        { "key": "backend", "doc_count": 3 }
+                    ]
+                }
+            }
+        }"#;
+
+        let result = parse_search_execution_result(es_json, 10).expect("valid parse");
+        assert_eq!(result.total, 3);
+        assert_eq!(result.facets.extensions.len(), 2);
+        assert_eq!(result.facets.extensions[0].key, "rs");
+        assert_eq!(result.facets.extensions[0].doc_count, 2);
+        assert_eq!(result.facets.types.len(), 2);
+        assert_eq!(result.facets.languages.len(), 2);
+        assert_eq!(result.facets.tags.len(), 1);
+        assert_eq!(result.facets.projects.len(), 1);
+
+        // Test missing aggregations block gracefully defaults to empty
+        let empty_es_json = r#"{ "took": 1, "hits": { "total": { "value": 0 }, "hits": [] } }"#;
+        let empty_res = parse_search_execution_result(empty_es_json, 1).expect("valid parse");
+        assert!(empty_res.facets.extensions.is_empty());
+        assert!(empty_res.facets.types.is_empty());
+        assert!(empty_res.facets.languages.is_empty());
+        assert!(empty_res.facets.tags.is_empty());
+        assert!(empty_res.facets.projects.is_empty());
     }
 }

@@ -163,6 +163,10 @@ impl Language {
             .and_then(|ext| ext.to_str())
             .and_then(Self::from_extension)
     }
+
+    pub fn is_known(&self) -> bool {
+        !matches!(self, Self::Other(_))
+    }
 }
 
 impl Serialize for Language {

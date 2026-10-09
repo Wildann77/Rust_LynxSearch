@@ -14,8 +14,8 @@ pub use id::{DocumentId, FolderId, JobId};
 pub use job::{IndexingJob, JobProgressUpdate, JobStatus, JobType};
 pub use registry::{DocumentStatus, RegistryEntry};
 pub use search::{
-    SearchExecutionResult, SearchHighlight, SearchHit, SearchQuery, extract_line_number,
-    parse_search_execution_result,
+    FacetBucket, SearchExecutionResult, SearchFacets, SearchHighlight, SearchHit, SearchQuery,
+    extract_line_number, parse_search_execution_result,
 };
 pub use settings::AppSettings;
 pub use types::{DocumentType, FilterKey, Language};
