@@ -248,6 +248,13 @@ impl AppState {
         self.settings.read().await.clone()
     }
 
+    pub async fn sync_settings_from_repo(&self) -> Result<AppSettings, AppError> {
+        let db_settings = self.repositories.settings.get_settings().await?;
+        let mut settings_lock = self.settings.write().await;
+        *settings_lock = db_settings.clone();
+        Ok(db_settings)
+    }
+
     pub async fn update_settings(&self, new_settings: AppSettings) -> Result<(), AppError> {
         self.repositories
             .settings
@@ -256,6 +263,13 @@ impl AppState {
         let mut settings_lock = self.settings.write().await;
         *settings_lock = new_settings;
         Ok(())
+    }
+
+    pub async fn reset_settings(&self) -> Result<AppSettings, AppError> {
+        let default_settings = self.repositories.settings.reset_settings().await?;
+        let mut settings_lock = self.settings.write().await;
+        *settings_lock = default_settings.clone();
+        Ok(default_settings)
     }
 
     pub async fn recover_on_startup(

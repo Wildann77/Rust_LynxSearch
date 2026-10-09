@@ -40,6 +40,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 return Err(format!("Database migration error: {e}").into());
             }
             tracing::info!("Database migrations applied successfully");
+            match app_state.sync_settings_from_repo().await {
+                Ok(s) => tracing::info!(
+                    title_weight = s.weights.title,
+                    tag_weight = s.weights.tags,
+                    content_weight = s.weights.content,
+                    "Application settings loaded from database"
+                ),
+                Err(e) => {
+                    tracing::warn!(error = %e, "Failed to load settings from DB; using defaults")
+                }
+            }
         }
         Err(e) => {
             tracing::warn!(
