@@ -36,6 +36,8 @@ pub struct HighlightConfig {
     pub order: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub boundary_chars: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_analyzed_offset: Option<u32>,
 }
 
 impl Default for HighlightConfig {
@@ -48,6 +50,7 @@ impl Default for HighlightConfig {
             require_field_match: false,
             order: Some("score".to_string()),
             boundary_chars: None,
+            max_analyzed_offset: Some(999_999),
         }
     }
 }
@@ -88,6 +91,7 @@ pub struct SearchQueryBuilder {
     source_fields: Vec<String>,
     highlight: Option<HighlightConfig>,
     sort: Option<String>,
+    include_aggregations: bool,
 }
 
 impl SearchQueryBuilder {
@@ -106,6 +110,7 @@ impl SearchQueryBuilder {
                 .collect(),
             highlight: Some(HighlightConfig::default()),
             sort: None,
+            include_aggregations: true,
         }
     }
 
@@ -167,6 +172,15 @@ impl SearchQueryBuilder {
         self.sort.as_deref()
     }
 
+    pub fn aggregations(mut self, enabled: bool) -> Self {
+        self.include_aggregations = enabled;
+        self
+    }
+
+    pub fn is_aggregations_enabled(&self) -> bool {
+        self.include_aggregations
+    }
+
     pub fn query(&self) -> &SearchQuery {
         &self.query
     }
@@ -205,20 +219,45 @@ impl SearchQueryBuilder {
     fn build_query_clause(&self) -> Value {
         let fields = self.build_search_fields();
         let mut must_clauses = Vec::new();
+        let mut should_clauses = Vec::new();
 
-        // 1. Free terms: multi_match with best_fields
+        // 1. Free terms: disjunction in bool.should
+        // - Exact match (best_fields) with boost 1.0 (inheriting field boosts)
+        // - Prefix clause (bool_prefix) for incomplete words with boost 0.8
+        // - Fuzzy clause (best_fields) with fuzziness AUTO and boost 0.5
         if !self.query.free_terms.is_empty() {
             let free_text = self.query.free_terms.join(" ");
-            must_clauses.push(json!({
+
+            should_clauses.push(json!({
                 "multi_match": {
                     "query": free_text,
                     "fields": fields.clone(),
-                    "type": "best_fields"
+                    "type": "best_fields",
+                    "boost": 1.0
+                }
+            }));
+
+            should_clauses.push(json!({
+                "multi_match": {
+                    "query": free_text,
+                    "fields": fields.clone(),
+                    "type": "bool_prefix",
+                    "boost": 0.8
+                }
+            }));
+
+            should_clauses.push(json!({
+                "multi_match": {
+                    "query": free_text,
+                    "fields": fields.clone(),
+                    "type": "best_fields",
+                    "fuzziness": "AUTO",
+                    "boost": 0.5
                 }
             }));
         }
 
-        // 2. Phrase terms: multi_match with type phrase for each quoted phrase
+        // 2. Phrase terms: multi_match with type phrase for each quoted phrase in must
         for phrase in &self.query.phrase_terms {
             must_clauses.push(json!({
                 "multi_match": {
@@ -229,7 +268,25 @@ impl SearchQueryBuilder {
             }));
         }
 
-        // 3. Filters in bool.filter (separate from scoring)
+        if must_clauses.is_empty() && should_clauses.is_empty() {
+            json!({ "match_all": {} })
+        } else {
+            let mut bool_body = serde_json::Map::new();
+            if !must_clauses.is_empty() {
+                bool_body.insert("must".to_string(), Value::Array(must_clauses));
+            }
+            if !should_clauses.is_empty() {
+                bool_body.insert("should".to_string(), Value::Array(should_clauses));
+                bool_body.insert("minimum_should_match".to_string(), json!(1));
+            }
+            json!({ "bool": Value::Object(bool_body) })
+        }
+    }
+
+    /// Membangun klausa post_filter untuk exact filtering (extension, type, language, tag, project).
+    /// Menggunakan post_filter memastikan agregasi (aggs) tetap menghitung seluruh opsi kategori
+    /// pada scope query teks, sehingga opsi facet tidak hilang saat salah satu filter dipilih (multi-select).
+    fn build_post_filter_clause(&self) -> Option<Value> {
         let mut filter_clauses = Vec::new();
         let mut sorted_filters: Vec<(&FilterKey, &String)> = self.query.filters.iter().collect();
         sorted_filters.sort_by_key(|(k, _)| k.as_str());
@@ -242,25 +299,72 @@ impl SearchQueryBuilder {
                 FilterKey::Extension => "extension",
                 FilterKey::Type => "type",
             };
-            filter_clauses.push(json!({
-                "term": {
-                    field_name: val
-                }
-            }));
+
+            let values: Vec<&str> = val
+                .split(',')
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .collect();
+
+            if values.len() == 1 {
+                filter_clauses.push(json!({
+                    "term": {
+                        field_name: values[0]
+                    }
+                }));
+            } else if values.len() > 1 {
+                filter_clauses.push(json!({
+                    "terms": {
+                        field_name: values
+                    }
+                }));
+            }
         }
 
-        if must_clauses.is_empty() && filter_clauses.is_empty() {
-            json!({ "match_all": {} })
+        if filter_clauses.is_empty() {
+            None
         } else {
-            let mut bool_body = serde_json::Map::new();
-            if !must_clauses.is_empty() {
-                bool_body.insert("must".to_string(), Value::Array(must_clauses));
-            }
-            if !filter_clauses.is_empty() {
-                bool_body.insert("filter".to_string(), Value::Array(filter_clauses));
-            }
-            json!({ "bool": Value::Object(bool_body) })
+            Some(json!({
+                "bool": {
+                    "filter": filter_clauses
+                }
+            }))
         }
+    }
+
+    fn build_aggregations_clause(&self) -> Value {
+        json!({
+            "extensions": {
+                "terms": {
+                    "field": "extension",
+                    "size": 20
+                }
+            },
+            "languages": {
+                "terms": {
+                    "field": "language",
+                    "size": 20
+                }
+            },
+            "types": {
+                "terms": {
+                    "field": "type",
+                    "size": 20
+                }
+            },
+            "projects": {
+                "terms": {
+                    "field": "project",
+                    "size": 20
+                }
+            },
+            "tags": {
+                "terms": {
+                    "field": "tags",
+                    "size": 50
+                }
+            }
+        })
     }
 
     fn build_highlight_clause(&self) -> Option<Value> {
@@ -290,18 +394,22 @@ impl SearchQueryBuilder {
                 "title.code".to_string(),
                 json!({ "number_of_fragments": 0 }),
             );
-            fields_map.insert(
-                "content.code".to_string(),
-                Value::Object(content_field),
-            );
+            fields_map.insert("content.code".to_string(), Value::Object(content_field));
         }
 
-        Some(json!({
-            "pre_tags": config.pre_tags,
-            "post_tags": config.post_tags,
-            "require_field_match": config.require_field_match,
-            "fields": Value::Object(fields_map)
-        }))
+        let mut hl_map = serde_json::Map::new();
+        if let Some(max_offset) = config.max_analyzed_offset {
+            hl_map.insert("max_analyzed_offset".to_string(), json!(max_offset));
+        }
+        hl_map.insert("pre_tags".to_string(), json!(config.pre_tags));
+        hl_map.insert("post_tags".to_string(), json!(config.post_tags));
+        hl_map.insert(
+            "require_field_match".to_string(),
+            json!(config.require_field_match),
+        );
+        hl_map.insert("fields".to_string(), Value::Object(fields_map));
+
+        Some(Value::Object(hl_map))
     }
 
     pub fn build(&self) -> Value {
@@ -318,18 +426,34 @@ impl SearchQueryBuilder {
         root.insert("_source".to_string(), json!(self.source_fields));
         root.insert("query".to_string(), self.build_query_clause());
 
+        if let Some(post_filter) = self.build_post_filter_clause() {
+            root.insert("post_filter".to_string(), post_filter);
+        }
+
+        if self.include_aggregations {
+            root.insert("aggs".to_string(), self.build_aggregations_clause());
+        }
+
         if let Some(highlight) = self.build_highlight_clause() {
             root.insert("highlight".to_string(), highlight);
         }
 
         if let Some(sort_str) = &self.sort {
             let sort_clause = match sort_str.to_lowercase().as_str() {
-                "modified_desc" => Some(json!([
+                "modified_desc" | "modified_at" => Some(json!([
                     { "modified_at": { "order": "desc", "missing": "_last" } },
                     "_score"
                 ])),
                 "modified_asc" => Some(json!([
                     { "modified_at": { "order": "asc", "missing": "_last" } },
+                    "_score"
+                ])),
+                "name_asc" | "name" => Some(json!([
+                    { "relative_path": { "order": "asc", "missing": "_last" } },
+                    "_score"
+                ])),
+                "name_desc" => Some(json!([
+                    { "relative_path": { "order": "desc", "missing": "_last" } },
                     "_score"
                 ])),
                 "size_desc" => Some(json!([
@@ -393,6 +517,13 @@ mod tests {
         );
         assert_eq!(dsl["highlight"]["fields"]["content"]["fragment_size"], 150);
         assert_eq!(dsl["highlight"]["fields"]["content"]["order"], "score");
+
+        // Verify default aggregations
+        assert_eq!(dsl["aggs"]["extensions"]["terms"]["field"], "extension");
+        assert_eq!(dsl["aggs"]["languages"]["terms"]["field"], "language");
+        assert_eq!(dsl["aggs"]["types"]["terms"]["field"], "type");
+        assert_eq!(dsl["aggs"]["projects"]["terms"]["field"], "project");
+        assert_eq!(dsl["aggs"]["tags"]["terms"]["field"], "tags");
     }
 
     #[test]
@@ -401,14 +532,20 @@ mod tests {
         let builder = SearchQueryBuilder::new(query);
         let dsl = builder.build();
 
-        let must = dsl["query"]["bool"]["must"].as_array().expect("must array");
-        assert_eq!(must.len(), 1);
+        assert!(dsl["query"]["bool"]["must"].is_null());
+        let should = dsl["query"]["bool"]["should"]
+            .as_array()
+            .expect("should array");
+        assert_eq!(should.len(), 3);
+        assert_eq!(dsl["query"]["bool"]["minimum_should_match"], 1);
 
-        let mm = &must[0]["multi_match"];
-        assert_eq!(mm["query"], "rust ownership");
-        assert_eq!(mm["type"], "best_fields");
+        // 1. Exact match (best_fields) with boost 1.0
+        let exact = &should[0]["multi_match"];
+        assert_eq!(exact["query"], "rust ownership");
+        assert_eq!(exact["type"], "best_fields");
+        assert_eq!(exact["boost"], 1.0);
 
-        let fields = mm["fields"].as_array().expect("fields array");
+        let fields = exact["fields"].as_array().expect("fields array");
         assert_eq!(
             fields,
             &vec![
@@ -419,6 +556,19 @@ mod tests {
                 json!("content.code^1.0"),
             ]
         );
+
+        // 2. Prefix clause (bool_prefix) with boost 0.8
+        let prefix = &should[1]["multi_match"];
+        assert_eq!(prefix["query"], "rust ownership");
+        assert_eq!(prefix["type"], "bool_prefix");
+        assert_eq!(prefix["boost"], 0.8);
+
+        // 3. Fuzzy clause (fuzziness AUTO) with boost 0.5
+        let fuzzy = &should[2]["multi_match"];
+        assert_eq!(fuzzy["query"], "rust ownership");
+        assert_eq!(fuzzy["type"], "best_fields");
+        assert_eq!(fuzzy["fuzziness"], "AUTO");
+        assert_eq!(fuzzy["boost"], 0.5);
     }
 
     #[test]
@@ -434,8 +584,8 @@ mod tests {
             .query_code_subfields(false);
         let dsl = builder.build();
 
-        let mm = &dsl["query"]["bool"]["must"][0]["multi_match"];
-        let fields = mm["fields"].as_array().expect("fields array");
+        let exact = &dsl["query"]["bool"]["should"][0]["multi_match"];
+        let fields = exact["fields"].as_array().expect("fields array");
         assert_eq!(
             fields,
             &vec![json!("title^5.0"), json!("tags^4.0"), json!("content^2.0"),]
@@ -454,6 +604,7 @@ mod tests {
         let mm = &must[0]["multi_match"];
         assert_eq!(mm["query"], "async await");
         assert_eq!(mm["type"], "phrase");
+        assert!(dsl["query"]["bool"]["should"].is_null());
     }
 
     #[test]
@@ -463,24 +614,27 @@ mod tests {
         let dsl = builder.build();
 
         let must = dsl["query"]["bool"]["must"].as_array().expect("must array");
-        assert_eq!(must.len(), 2);
+        assert_eq!(must.len(), 1);
+        assert_eq!(must[0]["multi_match"]["query"], "bounded channel");
+        assert_eq!(must[0]["multi_match"]["type"], "phrase");
 
-        assert_eq!(must[0]["multi_match"]["query"], "tokio");
-        assert_eq!(must[0]["multi_match"]["type"], "best_fields");
-
-        assert_eq!(must[1]["multi_match"]["query"], "bounded channel");
-        assert_eq!(must[1]["multi_match"]["type"], "phrase");
+        let should = dsl["query"]["bool"]["should"]
+            .as_array()
+            .expect("should array");
+        assert_eq!(should.len(), 3);
+        assert_eq!(should[0]["multi_match"]["query"], "tokio");
+        assert_eq!(dsl["query"]["bool"]["minimum_should_match"], 1);
     }
 
     #[test]
-    fn test_filter_separation_in_bool_filter() {
+    fn test_filter_separation_in_post_filter() {
         let query =
             QueryParser::parse("language:rust tag:cli project:backend type:code extension:rs");
         let builder = SearchQueryBuilder::new(query);
         let dsl = builder.build();
 
-        assert!(dsl["query"]["bool"]["must"].is_null());
-        let filters = dsl["query"]["bool"]["filter"]
+        assert_eq!(dsl["query"]["match_all"], json!({}));
+        let filters = dsl["post_filter"]["bool"]["filter"]
             .as_array()
             .expect("filter array");
         assert_eq!(filters.len(), 5);
@@ -493,16 +647,43 @@ mod tests {
     }
 
     #[test]
+    fn test_multiple_filter_values_emit_terms_query() {
+        let query = QueryParser::parse("tag:rust tag:cli extension:rs,ts");
+        let builder = SearchQueryBuilder::new(query);
+        let dsl = builder.build();
+
+        let filters = dsl["post_filter"]["bool"]["filter"]
+            .as_array()
+            .expect("filter array");
+        assert_eq!(filters.len(), 2);
+
+        assert_eq!(filters[0]["terms"]["extension"], json!(["rs", "ts"]));
+        assert_eq!(filters[1]["terms"]["tags"], json!(["rust", "cli"]));
+    }
+
+    #[test]
+    fn test_disable_aggregations() {
+        let query = SearchQuery::empty();
+        let builder = SearchQueryBuilder::new(query).aggregations(false);
+        let dsl = builder.build();
+
+        assert!(dsl["aggs"].is_null());
+    }
+
+    #[test]
     fn test_search_with_both_text_and_filters() {
         let query = QueryParser::parse("ownership language:rust tag:memory");
         let builder = SearchQueryBuilder::new(query);
         let dsl = builder.build();
 
-        let must = dsl["query"]["bool"]["must"].as_array().expect("must array");
-        assert_eq!(must.len(), 1);
-        assert_eq!(must[0]["multi_match"]["query"], "ownership");
+        let should = dsl["query"]["bool"]["should"]
+            .as_array()
+            .expect("should array");
+        assert_eq!(should.len(), 3);
+        assert_eq!(should[0]["multi_match"]["query"], "ownership");
+        assert_eq!(dsl["query"]["bool"]["minimum_should_match"], 1);
 
-        let filter = dsl["query"]["bool"]["filter"]
+        let filter = dsl["post_filter"]["bool"]["filter"]
             .as_array()
             .expect("filter array");
         assert_eq!(filter.len(), 2);
@@ -587,6 +768,44 @@ mod tests {
             builder_modified_desc.build()["sort"],
             json!([
                 { "modified_at": { "order": "desc", "missing": "_last" } },
+                "_score"
+            ])
+        );
+
+        let builder_modified_at =
+            SearchQueryBuilder::new(query.clone()).sort(Some("modified_at".into()));
+        assert_eq!(
+            builder_modified_at.build()["sort"],
+            json!([
+                { "modified_at": { "order": "desc", "missing": "_last" } },
+                "_score"
+            ])
+        );
+
+        let builder_name_asc = SearchQueryBuilder::new(query.clone()).sort(Some("name_asc".into()));
+        assert_eq!(
+            builder_name_asc.build()["sort"],
+            json!([
+                { "relative_path": { "order": "asc", "missing": "_last" } },
+                "_score"
+            ])
+        );
+
+        let builder_name_alias = SearchQueryBuilder::new(query.clone()).sort(Some("name".into()));
+        assert_eq!(
+            builder_name_alias.build()["sort"],
+            json!([
+                { "relative_path": { "order": "asc", "missing": "_last" } },
+                "_score"
+            ])
+        );
+
+        let builder_name_desc =
+            SearchQueryBuilder::new(query.clone()).sort(Some("name_desc".into()));
+        assert_eq!(
+            builder_name_desc.build()["sort"],
+            json!([
+                { "relative_path": { "order": "desc", "missing": "_last" } },
                 "_score"
             ])
         );
