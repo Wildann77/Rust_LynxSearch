@@ -21,7 +21,7 @@ pub use index::{
 };
 pub use search::{
     FacetBucketDto, SearchFacetsDto, SearchRequestDto, SearchResponseDto, SearchResultItemDto,
-    SuggestRequestDto,
+    SuggestRequestDto, SuggestResponseDto,
 };
 pub use settings::{UpdateBm25WeightsDto, UpdateSettingsRequestDto};
 

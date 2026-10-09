@@ -39,6 +39,9 @@ pub struct SearchRequestDto {
 
     pub project: Option<String>,
 
+    #[serde(alias = "ext")]
+    pub extension: Option<String>,
+
     pub sort: Option<String>,
 }
 
@@ -80,6 +83,12 @@ impl SuggestRequestDto {
     }
 }
 
+/// Response payload untuk endpoint `GET /api/suggest`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SuggestResponseDto {
+    pub suggestions: Vec<String>,
+}
+
 /// Satu item hasil pencarian dokumen yang disajikan ke client UI.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SearchResultItemDto {
@@ -114,9 +123,11 @@ pub struct FacetBucketDto {
     pub doc_count: u64,
 }
 
-/// Kelompok facet pencarian (types, languages, tags, projects).
+/// Kelompok facet pencarian (extensions, types, languages, tags, projects).
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SearchFacetsDto {
+    #[serde(default)]
+    pub extensions: Vec<FacetBucketDto>,
     #[serde(default)]
     pub types: Vec<FacetBucketDto>,
     #[serde(default)]
@@ -155,6 +166,7 @@ mod tests {
             language: None,
             tag: None,
             project: None,
+            extension: None,
             sort: None,
         };
 
@@ -174,6 +186,7 @@ mod tests {
             language: None,
             tag: None,
             project: None,
+            extension: None,
             sort: None,
         };
 
@@ -188,6 +201,7 @@ mod tests {
             language: None,
             tag: None,
             project: None,
+            extension: None,
             sort: None,
         };
 
@@ -206,6 +220,7 @@ mod tests {
             language: None,
             tag: None,
             project: None,
+            extension: None,
             sort: None,
         };
         assert!(bad_page_min.validate().is_err());
@@ -219,6 +234,7 @@ mod tests {
             language: None,
             tag: None,
             project: None,
+            extension: None,
             sort: None,
         };
         assert!(bad_page_max.validate().is_err());
@@ -232,6 +248,7 @@ mod tests {
             language: None,
             tag: None,
             project: None,
+            extension: None,
             sort: None,
         };
         assert!(bad_size_min.validate().is_err());
@@ -245,6 +262,7 @@ mod tests {
             language: None,
             tag: None,
             project: None,
+            extension: None,
             sort: None,
         };
         assert!(bad_size_max.validate().is_err());
@@ -258,6 +276,7 @@ mod tests {
             language: None,
             tag: None,
             project: None,
+            extension: None,
             sort: None,
         };
         assert!(valid_bounds.validate().is_ok());
@@ -277,6 +296,7 @@ mod tests {
             language: None,
             tag: None,
             project: None,
+            extension: None,
             sort: None,
         };
         assert!(valid_padded.validate().is_ok());
@@ -291,6 +311,7 @@ mod tests {
             language: None,
             tag: None,
             project: None,
+            extension: None,
             sort: None,
         };
         assert!(invalid_dto.validate().is_err());
