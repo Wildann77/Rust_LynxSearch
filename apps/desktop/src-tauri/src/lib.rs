@@ -6,31 +6,59 @@ static TARGET_ZOOM: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64:
 fn open_file_in_editor(path: String, editor_cmd: Option<String>) -> Result<(), String> {
     let resolved_cmd = editor_cmd
         .filter(|c| !c.trim().is_empty())
-        .or_else(|| std::env::var("VISUAL").ok().filter(|c| !c.trim().is_empty()))
-        .or_else(|| std::env::var("EDITOR").ok().filter(|c| !c.trim().is_empty()));
+        .or_else(|| {
+            std::env::var("VISUAL")
+                .ok()
+                .filter(|c| !c.trim().is_empty())
+        })
+        .or_else(|| {
+            std::env::var("EDITOR")
+                .ok()
+                .filter(|c| !c.trim().is_empty())
+        });
 
     if let Some(cmd) = resolved_cmd {
         match cmd.as_str() {
             "default" => {
-                return tauri_plugin_opener::open_path(&path, None::<&str>).map_err(|e| e.to_string());
+                return tauri_plugin_opener::open_path(&path, None::<&str>)
+                    .map_err(|e| e.to_string());
             }
             "antigravity-ide" => {
-                if std::process::Command::new("antigravity-ide").args(["-r", &path]).spawn().is_ok()
-                    || std::process::Command::new("antigravity-ide").arg(&path).spawn().is_ok()
+                if std::process::Command::new("antigravity-ide")
+                    .args(["-r", &path])
+                    .spawn()
+                    .is_ok()
+                    || std::process::Command::new("antigravity-ide")
+                        .arg(&path)
+                        .spawn()
+                        .is_ok()
                 {
                     return Ok(());
                 }
             }
             "code" => {
-                if std::process::Command::new("code").args(["-r", &path]).spawn().is_ok()
-                    || std::process::Command::new("code").arg(&path).spawn().is_ok()
-                    || std::process::Command::new("antigravity-ide").args(["-r", &path]).spawn().is_ok()
+                if std::process::Command::new("code")
+                    .args(["-r", &path])
+                    .spawn()
+                    .is_ok()
+                    || std::process::Command::new("code")
+                        .arg(&path)
+                        .spawn()
+                        .is_ok()
+                    || std::process::Command::new("antigravity-ide")
+                        .args(["-r", &path])
+                        .spawn()
+                        .is_ok()
                 {
                     return Ok(());
                 }
             }
             "gnome-text-editor" => {
-                if std::process::Command::new("gnome-text-editor").arg(&path).spawn().is_ok() {
+                if std::process::Command::new("gnome-text-editor")
+                    .arg(&path)
+                    .spawn()
+                    .is_ok()
+                {
                     return Ok(());
                 }
             }
@@ -50,17 +78,33 @@ fn open_file_in_editor(path: String, editor_cmd: Option<String>) -> Result<(), S
     }
 
     // Default cascading fallbacks
-    if std::process::Command::new("antigravity-ide").args(["-r", &path]).spawn().is_ok()
-        || std::process::Command::new("antigravity-ide").arg(&path).spawn().is_ok()
+    if std::process::Command::new("antigravity-ide")
+        .args(["-r", &path])
+        .spawn()
+        .is_ok()
+        || std::process::Command::new("antigravity-ide")
+            .arg(&path)
+            .spawn()
+            .is_ok()
     {
         return Ok(());
     }
-    if std::process::Command::new("code").args(["-r", &path]).spawn().is_ok()
-        || std::process::Command::new("code").arg(&path).spawn().is_ok()
+    if std::process::Command::new("code")
+        .args(["-r", &path])
+        .spawn()
+        .is_ok()
+        || std::process::Command::new("code")
+            .arg(&path)
+            .spawn()
+            .is_ok()
     {
         return Ok(());
     }
-    if std::process::Command::new("gnome-text-editor").arg(&path).spawn().is_ok() {
+    if std::process::Command::new("gnome-text-editor")
+        .arg(&path)
+        .spawn()
+        .is_ok()
+    {
         return Ok(());
     }
 
@@ -79,7 +123,6 @@ fn focus_window(window: tauri::WebviewWindow) -> Result<(), String> {
     window.set_focus().map_err(|e| e.to_string())
 }
 
-
 #[tauri::command]
 fn set_desktop_zoom(window: tauri::WebviewWindow, scale: f64) -> Result<(), String> {
     TARGET_ZOOM.store(scale.to_bits(), std::sync::atomic::Ordering::SeqCst);
@@ -92,7 +135,12 @@ async fn pick_folder(app: tauri::AppHandle) -> Result<Option<String>, String> {
     {
         // Enforce sensible window size for GTK File Chooser so it fits laptop screens (768p/1080p)
         let _ = std::process::Command::new("gsettings")
-            .args(["set", "org.gtk.Settings.FileChooser", "window-size", "(900, 560)"])
+            .args([
+                "set",
+                "org.gtk.Settings.FileChooser",
+                "window-size",
+                "(900, 560)",
+            ])
             .output();
     }
 
@@ -175,4 +223,3 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running LynxSearch desktop application");
 }
-
