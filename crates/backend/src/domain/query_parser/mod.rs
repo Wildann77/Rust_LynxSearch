@@ -1,5 +1,5 @@
 use crate::domain::models::search::SearchQuery;
-use crate::domain::models::types::FilterKey;
+use crate::domain::models::types::{DocumentType, FilterKey, Language};
 use std::collections::HashMap;
 use std::str::FromStr;
 
@@ -99,38 +99,24 @@ impl QueryParser {
                     }
                 }
 
-                if is_identifier(key) {
-                    match FilterKey::from_str(key) {
-                        Ok(filter_key) => {
-                            let clean_val = quoted_val.trim();
-                            if clean_val.is_empty() {
-                                warnings.push(format!(
-                                    "Filter '{key}' memiliki nilai kosong dan diabaikan."
-                                ));
-                            } else {
-                                filters
-                                    .entry(filter_key)
-                                    .and_modify(|existing: &mut String| {
-                                        existing.push(',');
-                                        existing.push_str(clean_val);
-                                    })
-                                    .or_insert_with(|| clean_val.to_string());
-                            }
-                        }
-                        Err(_) => {
-                            warnings.push(format!("Filter '{key}' tidak dikenali dan diabaikan."));
-                        }
+                if !closed {
+                    // Malformed token: unclosed quote in filter value
+                    warnings.push(format!(
+                        "Filter '{key}' memiliki tanda kutip yang tidak tertutup dan diabaikan."
+                    ));
+                    let mut fallback = token_slice;
+                    fallback.push('"');
+                    fallback.push_str(&quoted_val);
+                    for part in fallback.split_whitespace() {
+                        free_terms.push(part.to_string());
                     }
+                } else if is_identifier(key) {
+                    apply_filter_value(key, &quoted_val, &mut filters, &mut warnings);
                 } else {
                     let mut combined = token_slice;
-                    if closed {
-                        combined.push('"');
-                        combined.push_str(&quoted_val);
-                        combined.push('"');
-                    } else {
-                        combined.push('"');
-                        combined.push_str(&quoted_val);
-                    }
+                    combined.push('"');
+                    combined.push_str(&quoted_val);
+                    combined.push('"');
                     free_terms.push(combined);
                 }
                 continue;
@@ -138,27 +124,7 @@ impl QueryParser {
 
             // Normal token: check if it's key:value
             if let Some((key, val)) = parse_filter_pair(&token_slice) {
-                match FilterKey::from_str(key) {
-                    Ok(filter_key) => {
-                        let clean_val = val.trim();
-                        if clean_val.is_empty() {
-                            warnings.push(format!(
-                                "Filter '{key}' memiliki nilai kosong dan diabaikan."
-                            ));
-                        } else {
-                            filters
-                                .entry(filter_key)
-                                .and_modify(|existing: &mut String| {
-                                    existing.push(',');
-                                    existing.push_str(clean_val);
-                                })
-                                .or_insert_with(|| clean_val.to_string());
-                        }
-                    }
-                    Err(_) => {
-                        warnings.push(format!("Filter '{key}' tidak dikenali dan diabaikan."));
-                    }
-                }
+                apply_filter_value(key, val, &mut filters, &mut warnings);
                 continue;
             }
 
@@ -176,6 +142,120 @@ impl QueryParser {
     }
 }
 
+fn apply_filter_value(
+    key: &str,
+    raw_val: &str,
+    filters: &mut HashMap<FilterKey, String>,
+    warnings: &mut Vec<String>,
+) {
+    let clean_val = raw_val.trim();
+    if clean_val.is_empty() {
+        warnings.push(format!(
+            "Filter '{key}' memiliki nilai kosong dan diabaikan."
+        ));
+        return;
+    }
+
+    let filter_key = match FilterKey::from_str(key) {
+        Ok(k) => k,
+        Err(_) => {
+            warnings.push(format!("Filter '{key}' tidak dikenali dan diabaikan."));
+            return;
+        }
+    };
+
+    match filter_key {
+        FilterKey::Language => {
+            let mut valid_parts = Vec::new();
+            let mut had_token = false;
+            for part in clean_val.split(',') {
+                let trimmed = part.trim();
+                if trimmed.is_empty() {
+                    continue;
+                }
+                had_token = true;
+                let normalized = trimmed.to_ascii_lowercase();
+                let lang = Language::from_str(&normalized).expect("infallible");
+                if lang.is_known() {
+                    valid_parts.push(normalized);
+                } else {
+                    warnings.push(format!(
+                        "Filter language '{trimmed}' tidak dikenali dan diabaikan."
+                    ));
+                }
+            }
+            if !had_token {
+                warnings.push(format!(
+                    "Filter '{key}' memiliki nilai kosong dan diabaikan."
+                ));
+            } else if !valid_parts.is_empty() {
+                merge_filter_value(filters, filter_key, &valid_parts.join(","));
+            }
+        }
+        FilterKey::Extension => {
+            let mut normalized_parts = Vec::new();
+            for part in clean_val.split(',') {
+                let stripped = part.trim().trim_start_matches('.');
+                if !stripped.is_empty() {
+                    normalized_parts.push(stripped.to_ascii_lowercase());
+                }
+            }
+            if normalized_parts.is_empty() {
+                warnings.push(format!(
+                    "Filter '{key}' memiliki nilai kosong dan diabaikan."
+                ));
+                return;
+            }
+            merge_filter_value(filters, filter_key, &normalized_parts.join(","));
+        }
+        FilterKey::Type => {
+            let mut valid_parts = Vec::new();
+            for part in clean_val.split(',') {
+                let trimmed = part.trim();
+                let normalized = trimmed.to_ascii_lowercase();
+                if DocumentType::from_str(&normalized).is_ok() {
+                    valid_parts.push(normalized);
+                } else if !trimmed.is_empty() {
+                    warnings.push(format!(
+                        "Filter type '{trimmed}' tidak dikenali dan diabaikan."
+                    ));
+                }
+            }
+            if !valid_parts.is_empty() {
+                merge_filter_value(filters, filter_key, &valid_parts.join(","));
+            }
+        }
+        FilterKey::Tag | FilterKey::Project => {
+            merge_filter_value(filters, filter_key, clean_val);
+        }
+    }
+}
+
+fn merge_filter_value(filters: &mut HashMap<FilterKey, String>, key: FilterKey, new_val: &str) {
+    filters
+        .entry(key)
+        .and_modify(|existing| {
+            let mut parts: Vec<String> = existing.split(',').map(|s| s.to_string()).collect();
+            for part in new_val.split(',') {
+                let trimmed = part.trim();
+                if !trimmed.is_empty() && !parts.iter().any(|p| p == trimmed) {
+                    parts.push(trimmed.to_string());
+                }
+            }
+            *existing = parts.join(",");
+        })
+        .or_insert_with(|| {
+            let mut parts = Vec::new();
+            for part in new_val.split(',') {
+                let trimmed = part.trim();
+                if !trimmed.is_empty() && !parts.contains(&trimmed) {
+                    parts.push(trimmed);
+                }
+            }
+            parts.join(",")
+        });
+}
+
 fn parse_filter_pair(token: &str) -> Option<(&str, &str)> {
     if token.contains("://") || token.contains("::") {
         return None;
@@ -189,11 +269,14 @@ fn parse_filter_pair(token: &str) -> Option<(&str, &str)> {
 }
 
 fn is_identifier(s: &str) -> bool {
-    if s.is_empty() {
+    let mut chars = s.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    if !first.is_ascii_alphabetic() {
         return false;
     }
-    s.chars()
-        .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+    chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
 }
 
 #[cfg(test)]
@@ -345,5 +428,93 @@ mod tests {
         assert_eq!(q.filters.get(&FilterKey::Project).unwrap(), "backend");
         assert_eq!(q.filters.get(&FilterKey::Type).unwrap(), "code");
         assert!(q.warnings.is_empty());
+    }
+
+    #[test]
+    fn test_parse_case_insensitivity_keys_and_values() {
+        let q = QueryParser::parse("LANGUAGE:Rust EXT:RS TYPE:CODE tags:concurrency");
+        assert_eq!(q.filters.get(&FilterKey::Language).unwrap(), "rust");
+        assert_eq!(q.filters.get(&FilterKey::Extension).unwrap(), "rs");
+        assert_eq!(q.filters.get(&FilterKey::Type).unwrap(), "code");
+        assert_eq!(q.filters.get(&FilterKey::Tag).unwrap(), "concurrency");
+        assert!(q.warnings.is_empty());
+    }
+
+    #[test]
+    fn test_parse_extension_with_dot_stripped() {
+        let q = QueryParser::parse("extension:.rs ext:.ts");
+        assert_eq!(q.filters.get(&FilterKey::Extension).unwrap(), "rs,ts");
+        assert!(q.warnings.is_empty());
+    }
+
+    #[test]
+    fn test_parse_unclosed_filter_quote_malformed_warning() {
+        let q = QueryParser::parse(r#"project:"backend service"#);
+        assert_eq!(
+            q.warnings,
+            vec!["Filter 'project' memiliki tanda kutip yang tidak tertutup dan diabaikan."]
+        );
+        assert!(q.filters.is_empty());
+        assert_eq!(q.free_terms, vec![r#"project:"backend"#, "service"]);
+    }
+
+    #[test]
+    fn test_parse_empty_quotes_in_filter() {
+        let q = QueryParser::parse(r#"language:"" tag:"   ""#);
+        assert_eq!(
+            q.warnings,
+            vec![
+                "Filter 'language' memiliki nilai kosong dan diabaikan.",
+                "Filter 'tag' memiliki nilai kosong dan diabaikan."
+            ]
+        );
+        assert!(q.filters.is_empty());
+    }
+
+    #[test]
+    fn test_parse_invalid_type_filter_warning() {
+        let q = QueryParser::parse("type:invalid_type type:code");
+        assert_eq!(
+            q.warnings,
+            vec!["Filter type 'invalid_type' tidak dikenali dan diabaikan."]
+        );
+        assert_eq!(q.filters.get(&FilterKey::Type).unwrap(), "code");
+    }
+
+    #[test]
+    fn test_parse_duplicate_filter_value_deduplication() {
+        let q = QueryParser::parse("tag:rust tag:cli tag:rust");
+        assert_eq!(q.filters.get(&FilterKey::Tag).unwrap(), "rust,cli");
+    }
+
+    #[test]
+    fn test_parse_numeric_colons_and_ports_as_free_terms() {
+        let q = QueryParser::parse("12:00 16:9 8080:tcp");
+        assert_eq!(q.free_terms, vec!["12:00", "16:9", "8080:tcp"]);
+        assert!(q.filters.is_empty());
+        assert!(q.warnings.is_empty());
+    }
+
+    #[test]
+    fn test_parse_invalid_language_filter_warning() {
+        let q = QueryParser::parse("language:bogus_lang language:rust");
+        assert_eq!(
+            q.warnings,
+            vec!["Filter language 'bogus_lang' tidak dikenali dan diabaikan."]
+        );
+        assert_eq!(q.filters.get(&FilterKey::Language).unwrap(), "rust");
+    }
+
+    #[test]
+    fn test_parse_warning_order_deterministic() {
+        let q = QueryParser::parse("foo:1 bar:2 baz:");
+        assert_eq!(
+            q.warnings,
+            vec![
+                "Filter 'foo' tidak dikenali dan diabaikan.",
+                "Filter 'bar' tidak dikenali dan diabaikan.",
+                "Filter 'baz' memiliki nilai kosong dan diabaikan."
+            ]
+        );
     }
 }
