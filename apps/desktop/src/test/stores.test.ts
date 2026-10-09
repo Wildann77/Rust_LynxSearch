@@ -23,15 +23,40 @@ describe('Zustand Stores', () => {
       expect(state.activeFilters).toEqual({});
       expect(state.page).toBe(1);
       expect(state.pageSize).toBe(20);
+      expect(state.sort).toBe('relevance');
       expect(state.selectedDocId).toBeNull();
     });
 
-    it('updates rawQuery and resets page to 1', () => {
+    it('updates rawQuery and resets page to 1 while preserving sort', () => {
+      useSearchStore.getState().setSort('modified_desc');
       useSearchStore.getState().setPage(3);
       expect(useSearchStore.getState().page).toBe(3);
 
       useSearchStore.getState().setRawQuery('authenticate');
       expect(useSearchStore.getState().rawQuery).toBe('authenticate');
+      expect(useSearchStore.getState().page).toBe(1);
+      expect(useSearchStore.getState().sort).toBe('modified_desc');
+    });
+
+    it('updates sort and resets page to 1', () => {
+      useSearchStore.getState().setPage(4);
+      useSearchStore.getState().setSort('name_asc');
+      expect(useSearchStore.getState().sort).toBe('name_asc');
+      expect(useSearchStore.getState().page).toBe(1);
+    });
+
+    it('preserves sort on page change', () => {
+      useSearchStore.getState().setSort('size_desc');
+      useSearchStore.getState().setPage(2);
+      expect(useSearchStore.getState().sort).toBe('size_desc');
+      expect(useSearchStore.getState().page).toBe(2);
+    });
+
+    it('resets sort on resetSearch', () => {
+      useSearchStore.getState().setSort('name_desc');
+      useSearchStore.getState().setPage(3);
+      useSearchStore.getState().resetSearch();
+      expect(useSearchStore.getState().sort).toBe('relevance');
       expect(useSearchStore.getState().page).toBe(1);
     });
 
@@ -55,6 +80,23 @@ describe('Zustand Stores', () => {
       // Clear all
       useSearchStore.getState().clearFilters();
       expect(useSearchStore.getState().activeFilters).toEqual({});
+    });
+
+    it('supports multi-value filtering with toggleFilterValue and removeFilterValue', () => {
+      useSearchStore.getState().toggleFilterValue('extension', 'rs');
+      expect(useSearchStore.getState().activeFilters.extension).toBe('rs');
+
+      // Toggle another extension
+      useSearchStore.getState().toggleFilterValue('extension', 'ts');
+      expect(useSearchStore.getState().activeFilters.extension).toBe('rs,ts');
+
+      // Untoggle first extension
+      useSearchStore.getState().toggleFilterValue('extension', 'rs');
+      expect(useSearchStore.getState().activeFilters.extension).toBe('ts');
+
+      // Remove specific value
+      useSearchStore.getState().removeFilterValue('extension', 'ts');
+      expect(useSearchStore.getState().activeFilters.extension).toBeUndefined();
     });
 
     it('manages selectedDocId, page, and pageSize', () => {
@@ -83,6 +125,40 @@ describe('Zustand Stores', () => {
       expect(state.activeFilters).toEqual({});
       expect(state.page).toBe(1);
       expect(state.selectedDocId).toBeNull();
+    });
+
+    it('synchronizes facets and query bidirectionally (TASK.md 8.7)', () => {
+      // 1. Preserve free-text terms and append token when clicking facet
+      useSearchStore.getState().setRawQuery('tokio runtime');
+      useSearchStore.getState().toggleFilterValue('language', 'rust');
+      expect(useSearchStore.getState().rawQuery).toBe('tokio runtime language:rust');
+      expect(useSearchStore.getState().activeFilters.language).toBe('rust');
+
+      // 2. Add second value -> comma separated, avoid duplicate
+      useSearchStore.getState().toggleFilterValue('tag', 'cli');
+      useSearchStore.getState().toggleFilterValue('tag', 'web');
+      expect(useSearchStore.getState().rawQuery).toBe(
+        'tokio runtime language:rust tag:cli,web',
+      );
+      expect(useSearchStore.getState().activeFilters.tag).toBe('cli,web');
+
+      // 3. Editing filter token in query input updates activeFilters
+      useSearchStore
+        .getState()
+        .setRawQuery('tokio runtime language:go tag:cli,web type:code');
+      expect(useSearchStore.getState().activeFilters.language).toBe('go');
+      expect(useSearchStore.getState().activeFilters.type).toBe('code');
+      expect(useSearchStore.getState().activeFilters.tag).toBe('cli,web');
+
+      // 4. Removing token unchecks facet
+      useSearchStore.getState().removeFilterValue('language', 'go');
+      expect(useSearchStore.getState().rawQuery).toBe('tokio runtime type:code tag:cli,web');
+      expect(useSearchStore.getState().activeFilters.language).toBeUndefined();
+
+      // 5. Clear filters keeps free text intact
+      useSearchStore.getState().clearFilters();
+      expect(useSearchStore.getState().rawQuery).toBe('tokio runtime');
+      expect(useSearchStore.getState().activeFilters).toEqual({});
     });
   });
 
