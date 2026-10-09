@@ -3,7 +3,10 @@ import { Search, X, Loader2 } from 'lucide-react';
 import { useIsFetching } from '@tanstack/react-query';
 import { useSearchStore, type ActiveFilters } from '../../stores/searchStore';
 import { useDebounce } from '../../hooks/useDebounce';
+import { useSuggestQuery } from '../../hooks/useSearchQueries';
 import { queryKeys } from '../../hooks/queryKeys';
+import { parseQueryFilters } from '../../lib/querySync';
+import { AutocompletePopover } from './AutocompletePopover';
 import { cn } from '../../lib/utils';
 
 export interface SearchBarProps {
@@ -20,21 +23,63 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
     const setFilter = useSearchStore((state) => state.setFilter);
 
     const inputRef = React.useRef<HTMLInputElement | null>(null);
+    const containerRef = React.useRef<HTMLDivElement | null>(null);
+
+    const [isFocused, setIsFocused] = React.useState(false);
+    const [isDismissed, setIsDismissed] = React.useState(false);
+    const [highlightedIndex, setHighlightedIndex] = React.useState(-1);
 
     React.useImperativeHandle(ref, () => inputRef.current as HTMLInputElement);
 
-    // Track debounce state
+    // Track debounce state for search
     const debouncedQuery = useDebounce(rawQuery, debounceMs);
     const isDebouncing = rawQuery !== debouncedQuery;
+
+    // Track prefix suggestion with 150ms debounce
+    const { freeText } = parseQueryFilters(rawQuery);
+    const debouncedSuggestTerm = useDebounce(freeText, 150);
+    const isQueryLongEnough = debouncedSuggestTerm.trim().length >= 2;
+
+    const shouldFetchSuggest = Boolean(isFocused && !isDismissed && isQueryLongEnough);
+    const { data: suggestData, isFetching: isFetchingSuggest } = useSuggestQuery(
+      { q: debouncedSuggestTerm.trim(), limit: 5 },
+      { enabled: shouldFetchSuggest },
+    );
+    const suggestions = suggestData?.suggestions ?? [];
+    const isPopoverOpen = Boolean(
+      isFocused && !isDismissed && isQueryLongEnough && suggestions.length > 0,
+    );
 
     // Check if background TanStack query is fetching search results
     const isFetchingSearch = useIsFetching({ queryKey: queryKeys.search.all }) > 0;
     const showLoader = Boolean(
-      isLoading || isFetchingSearch || (isDebouncing && rawQuery.trim().length > 0),
+      isLoading ||
+        isFetchingSearch ||
+        (isDebouncing && rawQuery.trim().length > 0) ||
+        isFetchingSuggest,
     );
+
+    // Close popover when clicking outside
+    React.useEffect(() => {
+      const handleClickOutside = (event: MouseEvent) => {
+        if (
+          containerRef.current &&
+          !containerRef.current.contains(event.target as Node)
+        ) {
+          setIsDismissed(true);
+        }
+      };
+
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }, []);
 
     const handleClear = () => {
       setRawQuery('');
+      setIsDismissed(true);
+      setHighlightedIndex(-1);
       inputRef.current?.focus();
     };
 
@@ -43,7 +88,59 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
       inputRef.current?.focus();
     };
 
+    const applySuggestion = (suggestion: string) => {
+      let newQuery: string;
+      const trimmedFree = freeText.trim();
+      if (!trimmedFree || trimmedFree === rawQuery.trim()) {
+        newQuery = suggestion;
+      } else {
+        const idx = rawQuery.lastIndexOf(trimmedFree);
+        if (idx !== -1) {
+          newQuery = `${rawQuery.slice(0, idx)}${suggestion}${rawQuery.slice(idx + trimmedFree.length)}`;
+        } else {
+          newQuery = `${rawQuery.trim()} ${suggestion}`;
+        }
+      }
+
+      setRawQuery(newQuery);
+      setIsDismissed(true);
+      setHighlightedIndex(-1);
+    };
+
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (suggestions.length > 0) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          if (isDismissed) {
+            setIsDismissed(false);
+            setHighlightedIndex(0);
+            return;
+          }
+          setHighlightedIndex((prev) => (prev + 1) % suggestions.length);
+          return;
+        }
+        if (e.key === 'ArrowUp' && isPopoverOpen) {
+          e.preventDefault();
+          setHighlightedIndex((prev) =>
+            prev <= 0 ? suggestions.length - 1 : prev - 1,
+          );
+          return;
+        }
+        if (e.key === 'Enter' && isPopoverOpen) {
+          if (highlightedIndex >= 0 && suggestions[highlightedIndex]) {
+            e.preventDefault();
+            applySuggestion(suggestions[highlightedIndex]);
+            return;
+          }
+        }
+        if (e.key === 'Escape' && isPopoverOpen) {
+          e.preventDefault();
+          setIsDismissed(true);
+          setHighlightedIndex(-1);
+          return;
+        }
+      }
+
       if (e.key === 'Escape') {
         e.preventDefault();
         if (rawQuery) {
@@ -60,6 +157,7 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
 
     return (
       <div
+        ref={containerRef}
         className={cn(
           'relative flex items-center min-h-9 h-auto w-full max-w-xl rounded-md border border-border bg-card/90 px-2.5 py-1 shadow-xs transition-colors focus-within:border-primary/60 focus-within:ring-1 focus-within:ring-primary/40 gap-1.5 flex-wrap sm:flex-nowrap',
           className,
@@ -111,10 +209,28 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
           ref={inputRef}
           type="text"
           value={rawQuery}
-          onChange={(e) => setRawQuery(e.target.value)}
+          onChange={(e) => {
+            setRawQuery(e.target.value);
+            setIsDismissed(false);
+            setHighlightedIndex(-1);
+          }}
+          onFocus={() => {
+            setIsFocused(true);
+          }}
+          onBlur={(e) => {
+            if (!containerRef.current?.contains(e.relatedTarget as Node)) {
+              setIsFocused(false);
+            }
+          }}
           onKeyDown={handleKeyDown}
           placeholder="Search code, docs, tags... (Press / or ⌘K)"
           aria-label="Pencarian dokumen, kode, dan tag"
+          aria-autocomplete="list"
+          aria-controls={isPopoverOpen ? 'search-autocomplete-listbox' : undefined}
+          aria-expanded={isPopoverOpen}
+          aria-activedescendant={
+            highlightedIndex >= 0 ? `autocomplete-item-${highlightedIndex}` : undefined
+          }
           className="flex-1 min-w-[120px] bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-hidden focus:outline-hidden"
           spellCheck={false}
           autoComplete="off"
@@ -141,6 +257,15 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
             <span className="text-xs">⌘</span>K
           </kbd>
         </div>
+
+        {/* Autocomplete Popover Dropdown */}
+        <AutocompletePopover
+          isOpen={isPopoverOpen}
+          suggestions={suggestions}
+          query={debouncedSuggestTerm}
+          highlightedIndex={highlightedIndex}
+          onSelect={applySuggestion}
+        />
       </div>
     );
   },

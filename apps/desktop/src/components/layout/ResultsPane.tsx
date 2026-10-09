@@ -8,7 +8,14 @@ import { useFoldersQuery } from '../../hooks/useFolderQueries';
 import { ResultList } from '../search/ResultList';
 import { OfflineFallback } from '../common/OfflineFallback';
 import { useHealthQuery } from '../../hooks/useHealthQuery';
-import type { SearchRequest, SearchResultItem } from '../../types/search';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../ui/select';
+import { SORT_OPTIONS, type SearchRequest, type SearchResultItem, type SortOption } from '../../types/search';
 import { cn } from '../../lib/utils';
 
 export interface ResultsPaneProps {
@@ -20,8 +27,10 @@ export function ResultsPane({ className }: ResultsPaneProps) {
   const activeFilters = useSearchStore((state) => state.activeFilters);
   const page = useSearchStore((state) => state.page);
   const pageSize = useSearchStore((state) => state.pageSize);
+  const sort = useSearchStore((state) => state.sort);
   const selectedDocId = useSearchStore((state) => state.selectedDocId);
   const setPage = useSearchStore((state) => state.setPage);
+  const setSort = useSearchStore((state) => state.setSort);
   const setSelectedDocId = useSearchStore((state) => state.setSelectedDocId);
   const resetSearch = useSearchStore((state) => state.resetSearch);
   const setPreviewCollapsed = useUIStore((state) => state.setPreviewCollapsed);
@@ -40,6 +49,7 @@ export function ResultsPane({ className }: ResultsPaneProps) {
   // Determine if active search or filters are applied
   const isSearching = Boolean(
     debouncedQuery.trim() ||
+      activeFilters.extension ||
       activeFilters.type ||
       activeFilters.language ||
       activeFilters.tag ||
@@ -51,12 +61,14 @@ export function ResultsPane({ className }: ResultsPaneProps) {
       q: debouncedQuery.trim() || undefined,
       page,
       size: pageSize,
+      extension: activeFilters.extension || undefined,
       type: activeFilters.type || undefined,
       language: activeFilters.language || undefined,
       tag: activeFilters.tag || undefined,
       project: activeFilters.project || undefined,
+      sort: sort !== 'relevance' ? sort : undefined,
     }),
-    [debouncedQuery, page, pageSize, activeFilters],
+    [debouncedQuery, page, pageSize, activeFilters, sort],
   );
 
   const { data, isLoading, isFetching, isError, error, refetch } = useSearchQuery(searchParams, {
@@ -136,10 +148,31 @@ export function ResultsPane({ className }: ResultsPaneProps) {
             </div>
           ) : null}
 
-          <div className="flex items-center gap-1.5 rounded-md border border-border bg-secondary/40 px-2 py-0.5 text-[11px]">
-            <ArrowUpDown className="h-3 w-3 text-muted-foreground" />
-            <span>Sort: BM25 Relevance</span>
-          </div>
+          <Select value={sort} onValueChange={(val) => setSort(val as SortOption)}>
+            <SelectTrigger
+              className="h-7 w-auto min-w-[145px] gap-1.5 border-border/70 bg-secondary/30 px-2 py-1 text-[11px] font-mono text-foreground hover:bg-secondary/60 hover:text-foreground focus:ring-1 focus:ring-ring shrink-0 transition-colors cursor-pointer"
+              aria-label="Urutan hasil pencarian"
+            >
+              <div className="flex items-center gap-1.5 truncate">
+                <ArrowUpDown className="h-3 w-3 text-muted-foreground shrink-0" aria-hidden="true" />
+                <SelectValue placeholder="Pilih urutan" />
+              </div>
+            </SelectTrigger>
+            <SelectContent
+              align="end"
+              className="w-[170px] bg-popover/95 backdrop-blur-sm border-border text-popover-foreground shadow-xl"
+            >
+              {SORT_OPTIONS.map((opt) => (
+                <SelectItem
+                  key={opt.value}
+                  value={opt.value}
+                  className="text-[11px] font-mono py-1.5 cursor-pointer focus:bg-secondary focus:text-foreground"
+                >
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

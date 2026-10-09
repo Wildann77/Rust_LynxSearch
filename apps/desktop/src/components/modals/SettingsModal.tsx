@@ -30,6 +30,13 @@ import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
 import { Slider } from '../ui/slider';
 import { Skeleton } from '../ui/skeleton';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../ui/select';
 
 interface SettingsFormProps {
   settings: AppSettings;
@@ -120,11 +127,9 @@ function SettingsForm({ settings, onClose }: SettingsFormProps) {
             Editor Berkas Bawaan (Open in Editor)
           </label>
           <div className="flex items-center gap-2">
-            <select
-              id="settings-preferred-editor"
+            <Select
               value={preferredEditor ?? 'ask'}
-              onChange={(e) => {
-                const val = e.target.value;
+              onValueChange={(val) => {
                 setPreferredEditor(val === 'ask' ? null : val);
                 toast.success(
                   val === 'ask'
@@ -132,14 +137,47 @@ function SettingsForm({ settings, onClose }: SettingsFormProps) {
                     : `Editor bawaan diatur ke: ${val}`,
                 );
               }}
-              className="w-full text-xs bg-card border border-border rounded-md px-2.5 py-1.5 font-medium text-foreground outline-none focus:ring-1 focus:ring-primary cursor-pointer"
             >
-              <option value="ask">Selalu Tanya (Munculkan Pilihan)</option>
-              <option value="antigravity-ide">Antigravity IDE (Rekomendasi)</option>
-              <option value="code">Visual Studio Code (code)</option>
-              <option value="gnome-text-editor">GNOME Text Editor</option>
-              <option value="default">Aplikasi Bawaan OS (xdg-open)</option>
-            </select>
+              <SelectTrigger
+                id="settings-preferred-editor"
+                className="w-full h-9 bg-card border-border/80 px-3 py-2 text-xs font-medium text-foreground hover:bg-secondary/40 focus:ring-1 focus:ring-ring transition-colors cursor-pointer"
+                aria-label="Editor Berkas Bawaan"
+              >
+                <SelectValue placeholder="Pilih editor berkas bawaan" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover/95 backdrop-blur-sm border-border text-popover-foreground shadow-xl">
+                <SelectItem
+                  value="ask"
+                  className="text-xs font-medium py-2 cursor-pointer focus:bg-secondary focus:text-foreground"
+                >
+                  Selalu Tanya (Munculkan Pilihan)
+                </SelectItem>
+                <SelectItem
+                  value="antigravity-ide"
+                  className="text-xs font-medium py-2 cursor-pointer focus:bg-secondary focus:text-foreground"
+                >
+                  Antigravity IDE (Rekomendasi)
+                </SelectItem>
+                <SelectItem
+                  value="code"
+                  className="text-xs font-medium py-2 cursor-pointer focus:bg-secondary focus:text-foreground"
+                >
+                  Visual Studio Code (code)
+                </SelectItem>
+                <SelectItem
+                  value="gnome-text-editor"
+                  className="text-xs font-medium py-2 cursor-pointer focus:bg-secondary focus:text-foreground"
+                >
+                  GNOME Text Editor
+                </SelectItem>
+                <SelectItem
+                  value="default"
+                  className="text-xs font-medium py-2 cursor-pointer focus:bg-secondary focus:text-foreground"
+                >
+                  Aplikasi Bawaan OS (xdg-open)
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <p className="text-[11px] text-muted-foreground">
             Aplikasi yang dipanggil saat menekan tombol "Open in Editor" atau pintasan <kbd className="font-mono">⌘O</kbd>.

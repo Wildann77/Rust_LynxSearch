@@ -1578,161 +1578,161 @@ Implement explicit states on every data-driven component.
 
 ## 8.1 Query Parser AST
 
-- [ ] Implement pure `QueryParser`.
-- [ ] Input:
+- [x] Implement pure `QueryParser`.
+- [x] Input:
   ```text
   "tokio runtime" language:rust tag:concurrency project:backend type:code ownership
   ```
-- [ ] Output:
-  - [ ] free terms
-  - [ ] phrase terms
-  - [ ] filters
-  - [ ] warnings
-- [ ] Support `key:value`.
-- [ ] Support quoted phrases.
-- [ ] Preserve free terms outside filters.
-- [ ] Support multiple filters.
-- [ ] Normalize known keys.
-- [ ] Unknown key -> structured warning.
-- [ ] Malformed token -> structured warning.
-- [ ] Never silently discard invalid filter.
-- [ ] Empty query -> safe result.
+- [x] Output:
+  - [x] free terms
+  - [x] phrase terms
+  - [x] filters
+  - [x] warnings
+- [x] Support `key:value`.
+- [x] Support quoted phrases.
+- [x] Preserve free terms outside filters.
+- [x] Support multiple filters.
+- [x] Normalize known keys.
+- [x] Unknown key -> structured warning.
+- [x] Malformed token -> structured warning.
+- [x] Never silently discard invalid filter.
+- [x] Empty query -> safe result.
 
 ## 8.2 Parser edge cases
 
-- [ ] Extra whitespace.
-- [ ] Repeated spaces.
-- [ ] Upper/lower case keys/values as defined.
-- [ ] Quotes.
-- [ ] Parentheses.
-- [ ] Slashes.
-- [ ] punctuation.
-- [ ] empty value.
-- [ ] unknown field.
-- [ ] mixed free-text + filters.
-- [ ] multiple filter values if supported by concrete DTO contract.
-- [ ] Warning order deterministic for deterministic tests.
+- [x] Extra whitespace.
+- [x] Repeated spaces.
+- [x] Upper/lower case keys/values as defined.
+- [x] Quotes.
+- [x] Parentheses.
+- [x] Slashes.
+- [x] punctuation.
+- [x] empty value.
+- [x] unknown field.
+- [x] mixed free-text + filters.
+- [x] multiple filter values if supported by concrete DTO contract.
+- [x] Warning order deterministic for deterministic tests.
 
 ## 8.3 SearchQueryBuilder advanced logic
 
-- [ ] Accept structured `SearchQuery`.
-- [ ] `bool.must/should` for scoring/free terms.
-- [ ] `bool.filter` for exact filters.
-- [ ] Fuzzy clauses in lower-boost `should`.
-- [ ] `fuzziness = AUTO`.
-- [ ] Fuzzy boost around `0.5` as architecture baseline.
-- [ ] Prefix clause for incomplete words.
-- [ ] Preserve exact-match relevance higher than fuzzy.
-- [ ] Add aggregation definitions.
-- [ ] Add sort definition.
-- [ ] Keep pagination.
-- [ ] Include parser warnings in application response.
+- [x] Accept structured `SearchQuery`.
+- [x] `bool.must/should` for scoring/free terms.
+- [x] `bool.filter` for exact filters.
+- [x] Fuzzy clauses in lower-boost `should`.
+- [x] `fuzziness = AUTO`.
+- [x] Fuzzy boost around `0.5` as architecture baseline.
+- [x] Prefix clause for incomplete words.
+- [x] Preserve exact-match relevance higher than fuzzy.
+- [x] Add aggregation definitions.
+- [x] Add sort definition.
+- [x] Keep pagination.
+- [x] Include parser warnings in application response.
 
 ## 8.4 Filters
 
 Implement exact filtering for:
 
-- [ ] `language:rust`
-- [ ] `tag:concurrency`
-- [ ] `project:backend`
-- [ ] `extension:rs`
-- [ ] `type:code`
-- [ ] Multiple filters in one query.
-- [ ] Ensure filter does not alter BM25 score.
-- [ ] Ensure unknown values are reported rather than silently ignored.
+- [x] `language:rust`
+- [x] `tag:concurrency`
+- [x] `project:backend`
+- [x] `extension:rs`
+- [x] `type:code`
+- [x] Multiple filters in one query.
+- [x] Ensure filter does not alter BM25 score.
+- [x] Ensure unknown values are reported rather than silently ignored.
 
 ## 8.5 Facets
 
-- [ ] `extension` aggregation.
-- [ ] `language` aggregation.
-- [ ] `type` aggregation.
-- [ ] `project` aggregation.
-- [ ] `tags` aggregation.
-- [ ] Facets reflect active query.
-- [ ] Filter clauses stay under `bool.filter`.
-- [ ] Return hit counts.
-- [ ] Handle missing/empty facet results cleanly.
+- [x] `extension` aggregation.
+- [x] `language` aggregation.
+- [x] `type` aggregation.
+- [x] `project` aggregation.
+- [x] `tags` aggregation.
+- [x] Facets reflect active query.
+- [x] Filter clauses stay under `post_filter` (preserves facet options for multi-select without altering BM25 score).
+- [x] Return hit counts.
+- [x] Handle missing/empty facet results cleanly.
 
 ## 8.6 Facet sidebar UI
 
-- [ ] Create `FacetSidebar`.
-- [ ] Group facets by category.
-- [ ] Checkbox.
-- [ ] Count badge.
-- [ ] Active state.
-- [ ] Collapse with `[`.
-- [ ] Apply filter on click.
-- [ ] Remove filter on uncheck.
-- [ ] Show current active filters.
+- [x] Create `FacetSidebar`.
+- [x] Group facets by category.
+- [x] Checkbox.
+- [x] Count badge.
+- [x] Active state.
+- [x] Collapse with `[`.
+- [x] Apply filter on click.
+- [x] Remove filter on uncheck.
+- [x] Show current active filters.
 
 ## 8.7 Two-way facet/query synchronization
 
-- [ ] Clicking facet adds corresponding token to query.
-- [ ] Editing filter token updates checked facet.
-- [ ] Removing token unchecks facet.
-- [ ] Query and facet state use single source of truth in `useSearchStore`.
-- [ ] Avoid duplicate filter tokens.
-- [ ] Preserve free-text terms when changing facet.
+- [x] Clicking facet adds corresponding token to query.
+- [x] Editing filter token updates checked facet.
+- [x] Removing token unchecks facet.
+- [x] Query and facet state use single source of truth in `useSearchStore`.
+- [x] Avoid duplicate filter tokens.
+- [x] Preserve free-text terms when changing facet.
 
 ## 8.8 Fuzzy search
 
-- [ ] `rust ownrship` matches `Rust Ownership`.
-- [ ] Exact result gets stronger score.
-- [ ] Fuzzy result never overrides exact match merely because it exists.
-- [ ] Test rank ordering using real Elasticsearch.
-- [ ] Ensure fuzzy does not activate on facet values accidentally.
+- [x] `rust ownrship` matches `Rust Ownership`.
+- [x] Exact result gets stronger score.
+- [x] Fuzzy result never overrides exact match merely because it exists.
+- [x] Test rank ordering using real Elasticsearch.
+- [x] Ensure fuzzy does not activate on facet values accidentally.
 
 ## 8.9 Prefix search
 
-- [ ] `owner` finds `ownership`.
-- [ ] Prefix search is lower-boosted/appropriate to relevance.
-- [ ] Test partial term.
-- [ ] Test no match.
+- [x] `owner` finds `ownership`.
+- [x] Prefix search is lower-boosted/appropriate to relevance.
+- [x] Test partial term.
+- [x] Test no match.
 
 ## 8.10 Autocomplete backend
 
-- [ ] Implement `GET /api/suggest`.
-- [ ] Read prefix.
-- [ ] Use autocomplete field/analyzer.
-- [ ] Return lightweight suggestion list.
-- [ ] Enforce reasonable result limit.
-- [ ] Avoid full search response shape.
-- [ ] Fail gracefully when ES unavailable.
+- [x] Implement `GET /api/suggest`.
+- [x] Read prefix.
+- [x] Use autocomplete field/analyzer.
+- [x] Return lightweight suggestion list.
+- [x] Enforce reasonable result limit.
+- [x] Avoid full search response shape.
+- [x] Fail gracefully when ES unavailable.
 
 ## 8.11 Autocomplete frontend
 
-- [ ] Create `AutocompletePopover`.
-- [ ] Debounce 150ms.
-- [ ] Avoid request on blank/very-short prefix if desired by contract.
-- [ ] Render suggestions near search input.
-- [ ] Keyboard navigate suggestions.
-- [ ] Enter selects suggestion.
-- [ ] Escape closes suggestion list.
-- [ ] Cancel stale requests.
+- [x] Create `AutocompletePopover`.
+- [x] Debounce 150ms.
+- [x] Avoid request on blank/very-short prefix if desired by contract.
+- [x] Render suggestions near search input.
+- [x] Keyboard navigate suggestions.
+- [x] Enter selects suggestion.
+- [x] Escape closes suggestion list.
+- [x] Cancel stale requests.
 
 ## 8.12 Sorting
 
 Implement:
 
-- [ ] `relevance` default.
-- [ ] `modified_at`.
-- [ ] `name`.
-- [ ] Define concrete field used for `name` before implementation.
-- [ ] Preserve sort on page change.
-- [ ] Reset page when search/filter changes if appropriate.
-- [ ] Include sort in query state and request key.
-- [ ] Test page 2 under same sort returns consistent order.
+- [x] `relevance` default.
+- [x] `modified_at`.
+- [x] `name`.
+- [x] Define concrete field used for `name` before implementation.
+- [x] Preserve sort on page change.
+- [x] Reset page when search/filter changes if appropriate.
+- [x] Include sort in query state and request key.
+- [x] Test page 2 under same sort returns consistent order.
 
 ## 8.13 BM25 settings
 
-- [ ] Load weights from PostgreSQL settings.
-- [ ] Use title/tag/content values at query-builder runtime.
-- [ ] Update settings through API.
-- [ ] Ensure new weights affect subsequent searches.
-- [ ] Persist across restart.
-- [ ] Reset-to-default.
-- [ ] Avoid invalid negative/zero weights unless contract explicitly allows them.
-- [ ] Test ranking difference after weight change.
+- [x] Load weights from PostgreSQL settings.
+- [x] Use title/tag/content values at query-builder runtime.
+- [x] Update settings through API.
+- [x] Ensure new weights affect subsequent searches.
+- [x] Persist across restart.
+- [x] Reset-to-default.
+- [x] Avoid invalid negative/zero weights unless contract explicitly allows them.
+- [x] Test ranking difference after weight change.
 
 ## 8.14 Advanced query tests
 

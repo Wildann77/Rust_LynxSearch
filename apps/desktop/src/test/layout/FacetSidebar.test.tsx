@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { FacetSidebar } from '../../components/layout/FacetSidebar';
 import { useSearchStore } from '../../stores/searchStore';
@@ -99,5 +99,72 @@ describe('FacetSidebar Micro-States (Phase 7.19)', () => {
       expect(screen.getByTestId('facet-error-code').textContent).toBe('ERR_FACETS_UNAVAILABLE');
       expect(screen.getByText('Coba Lagi')).toBeDefined();
     });
+  });
+
+  it('renders extensions group, active filters panel, and supports multi-select', async () => {
+    useSearchStore.getState().setRawQuery('test');
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            query: 'test',
+            page: 1,
+            size: 20,
+            total: 5,
+            took_ms: 10,
+            items: [],
+            facets: {
+              extensions: [{ key: 'rs', doc_count: 3 }, { key: 'md', doc_count: 2 }],
+              types: [{ key: 'code', doc_count: 3 }],
+              languages: [{ key: 'rust', doc_count: 3 }],
+              tags: [],
+              projects: [],
+            },
+            warnings: [],
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
+      ),
+    );
+
+    renderSidebar();
+
+    // 1. Wait for Extensions group to appear
+    await vi.waitFor(() => {
+      expect(screen.getByTestId('facet-group-extension')).toBeDefined();
+    });
+
+    const extGroup = screen.getByTestId('facet-group-extension');
+    expect(within(extGroup).getByText('Extensions')).toBeDefined();
+    expect(within(extGroup).getByText('rs')).toBeDefined();
+
+    // 2. Select first extension 'rs'
+    const rsBtn = within(extGroup).getByText('rs').closest('button')!;
+    fireEvent.click(rsBtn);
+    expect(useSearchStore.getState().activeFilters.extension).toBe('rs');
+
+    // 3. Wait for facets to re-render and select second extension 'md' -> multi-select
+    await vi.waitFor(() => {
+      expect(screen.getByTestId('facet-group-extension')).toBeDefined();
+    });
+    const mdBtn = within(screen.getByTestId('facet-group-extension'))
+      .getByText('md')
+      .closest('button')!;
+    fireEvent.click(mdBtn);
+    expect(useSearchStore.getState().activeFilters.extension).toBe('rs,md');
+
+    // 4. Verify Active Filters panel rendered in DOM
+    await vi.waitFor(() => {
+      expect(screen.getByTestId('active-filters-panel')).toBeDefined();
+    });
+
+    const activePanel = screen.getByTestId('active-filters-panel');
+    const removeRsBtn = within(activePanel).getByLabelText('Remove filter extension:rs');
+    fireEvent.click(removeRsBtn);
+    expect(useSearchStore.getState().activeFilters.extension).toBe('md');
   });
 });
