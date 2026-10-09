@@ -40,3 +40,8 @@ pub async fn update_settings(
     state.update_settings(new_settings.clone()).await?;
     Ok(Json(new_settings))
 }
+
+pub async fn reset_settings(State(state): State<AppState>) -> Result<impl IntoResponse, AppError> {
+    let settings = state.reset_settings().await?;
+    Ok(Json(settings))
+}

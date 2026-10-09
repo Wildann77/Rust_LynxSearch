@@ -1,17 +1,16 @@
 use axum::Json;
 use axum::extract::State;
 use axum::response::IntoResponse;
-use serde_json::json;
 
 use crate::api::dtos::SuggestRequestDto;
 use crate::api::extractors::ValidatedQuery;
+use crate::application::queries::suggest_queries::execute_suggest;
 use crate::state::AppState;
 
 pub async fn suggest(
-    _state: State<AppState>,
-    ValidatedQuery(_query): ValidatedQuery<SuggestRequestDto>,
+    State(state): State<AppState>,
+    ValidatedQuery(query): ValidatedQuery<SuggestRequestDto>,
 ) -> impl IntoResponse {
-    Json(json!({
-        "suggestions": []
-    }))
+    let response = execute_suggest(&state.repositories, &query).await;
+    Json(response)
 }

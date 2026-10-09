@@ -42,6 +42,7 @@ pub fn create_router_with_timeout(state: AppState, timeout_duration: Duration) -
             "/api/settings",
             get(settings::get_settings).put(settings::update_settings),
         )
+        .route("/api/settings/reset", post(settings::reset_settings))
         .merge(heavy_routes);
 
     apply_middlewares(core_router, timeout_duration).with_state(state)
