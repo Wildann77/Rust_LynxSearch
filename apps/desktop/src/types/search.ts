@@ -31,12 +31,34 @@ export const FacetBucketSchema = z.object({
 export type FacetBucket = z.infer<typeof FacetBucketSchema>;
 
 export const SearchFacetsSchema = z.object({
+  extensions: z.array(FacetBucketSchema).default([]),
   types: z.array(FacetBucketSchema).default([]),
   languages: z.array(FacetBucketSchema).default([]),
   tags: z.array(FacetBucketSchema).default([]),
   projects: z.array(FacetBucketSchema).default([]),
 });
 export type SearchFacets = z.infer<typeof SearchFacetsSchema>;
+
+export const SortOptionSchema = z.enum([
+  'relevance',
+  'modified_desc',
+  'modified_asc',
+  'name_asc',
+  'name_desc',
+  'size_desc',
+  'size_asc',
+]);
+export type SortOption = z.infer<typeof SortOptionSchema>;
+
+export const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+  { value: 'relevance', label: 'Relevansi (BM25)' },
+  { value: 'modified_desc', label: 'Diubah: Terbaru' },
+  { value: 'modified_asc', label: 'Diubah: Terlama' },
+  { value: 'name_asc', label: 'Nama: A – Z' },
+  { value: 'name_desc', label: 'Nama: Z – A' },
+  { value: 'size_desc', label: 'Ukuran: Terbesar' },
+  { value: 'size_asc', label: 'Ukuran: Terkecil' },
+];
 
 export const SearchRequestSchema = z.object({
   q: z.string().optional(),
@@ -46,6 +68,7 @@ export const SearchRequestSchema = z.object({
   language: z.string().optional(),
   tag: z.string().optional(),
   project: z.string().optional(),
+  extension: z.string().optional(),
   sort: z.string().optional(),
 });
 export type SearchRequest = z.infer<typeof SearchRequestSchema>;
@@ -59,6 +82,7 @@ export const SearchResponseSchema = z.object({
   items: z.array(SearchResultItemSchema).default([]),
   results: z.array(SearchResultItemSchema).default([]),
   facets: SearchFacetsSchema.default({
+    extensions: [],
     types: [],
     languages: [],
     tags: [],

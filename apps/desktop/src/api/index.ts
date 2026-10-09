@@ -177,6 +177,7 @@ export async function searchDocuments(
       q: params.q,
       page: params.page,
       size: params.size,
+      extension: params.extension,
       type: params.type,
       language: params.language,
       tag: params.tag,
@@ -214,6 +215,13 @@ export async function updateSettings(
   signal?: AbortSignal,
 ): Promise<AppSettings> {
   return apiClient.put('/api/settings', data, {
+    schema: AppSettingsSchema,
+    signal,
+  });
+}
+
+export async function resetSettings(signal?: AbortSignal): Promise<AppSettings> {
+  return apiClient.post('/api/settings/reset', undefined, {
     schema: AppSettingsSchema,
     signal,
   });

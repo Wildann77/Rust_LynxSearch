@@ -273,4 +273,30 @@ describe('ApiClient & HTTP Layer', () => {
     expect(searchRes.query).toBe('test');
     expect(searchRes.total).toBe(0);
   });
+
+  it('forwards extension parameter in searchDocuments call', async () => {
+    const searchData = {
+      query: 'test',
+      page: 1,
+      size: 20,
+      total: 0,
+      took_ms: 5,
+      items: [],
+      results: [],
+      facets: { extensions: [], types: [], languages: [], tags: [], projects: [] },
+      warnings: [],
+    };
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(searchData), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    globalThis.fetch = mockFetch;
+
+    await searchDocuments({ q: 'test', extension: 'rs,ts' });
+    expect(mockFetch).toHaveBeenCalled();
+    const calledUrl = String(mockFetch.mock.calls[0][0]);
+    expect(calledUrl).toContain('extension=rs%2Cts');
+  });
 });
