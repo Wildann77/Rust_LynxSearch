@@ -279,6 +279,22 @@ async fn test_settings_routes() {
         .header("content-type", "application/json")
         .body(Body::from(body))
         .unwrap();
+    let res = app.clone().oneshot(req).await.unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+
+    // 18. POST /api/settings/reset
+    let req = Request::builder()
+        .uri("/api/settings/reset")
+        .method("POST")
+        .body(Body::empty())
+        .unwrap();
     let res = app.oneshot(req).await.unwrap();
     assert_eq!(res.status(), StatusCode::OK);
+    let body_bytes = axum::body::to_bytes(res.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let json_body: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap();
+    assert_eq!(json_body["weights"]["title"], 3.0);
+    assert_eq!(json_body["weights"]["tags"], 2.0);
+    assert_eq!(json_body["weights"]["content"], 1.0);
 }
