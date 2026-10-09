@@ -916,11 +916,11 @@ Query dikirimkan ke Elasticsearch dengan konfigurasi:
    - Pencarian juga mengecek subfield `title.code` dan `content.code` dengan bobot yang seimbang, memungkinkan kecocokan parsial camelCase/snake_case.
 3. **Fuzzy & Prefix Tolerance**:
    - Istilah bebas menerapkan `fuzziness: "AUTO"` pada klausa `should` dengan boost lebih rendah (`0.5`) agar hasil cocok persis selalu mengungguli hasil typo.
-4. **Exact Filtering via `bool.filter`**:
-   - Nilai filter (`language:rust`, `tag:concurrency`, `project:backend`, `type:code`, `extension:rs`) ditaruh di dalam blok `bool.filter`.
-   - **Rasional**: `bool.filter` digunakan untuk exact filtering karena filter tidak memengaruhi `_score` dan Elasticsearch dapat mengoptimalkan/caching klausa filter.
+4. **Exact Filtering via `post_filter`**:
+   - Nilai filter (`language:rust`, `tag:concurrency`, `project:backend`, `type:code`, `extension:rs`) ditaruh di dalam blok `post_filter`.
+   - **Rasional**: `post_filter` digunakan agar filter tidak memengaruhi `_score` dan tidak membatasi scope kalkulasi agregasi (`aggs`). Ini memungkinkan seluruh opsi facet kategori tetap tampil dan dapat di-multi-select oleh pengguna, sementara daftar hasil pencarian (`hits`) disaring secara tepat sesuai filter aktif.
 5. **Dynamic Facet Aggregation**:
-   - Menggunakan `terms` aggregations pada keyword fields (`extension`, `language`, `type`, `project`, `tags`) yang dievaluasi berdasarkan query aktif saat ini.
+   - Menggunakan `terms` aggregations pada keyword fields (`extension`, `language`, `type`, `project`, `tags`) yang dievaluasi berdasarkan query aktif saat ini tanpa terpotong oleh filter facet aktif.
 
 ### 5.3 Algoritma Perhitungan Nomor Baris Highlight
 Elasticsearch mengembalikan cuplikan `highlight` yang dibungkus tag `<em>...</em>`.
@@ -1134,10 +1134,11 @@ Seluruh response API menggunakan format seragam yang aman dan terstruktur.
     - `q` (optional): Query teks atau token inline (`language:rust`, `tag:cli`, dll.)
     - `page` (optional, default `1`): Nomor halaman (min 1, max 1000)
     - `size` (optional, default `20`): Ukuran halaman (min 1, max 100)
-    - `type` (optional): Filter tipe dokumen (`doc`, `code`, `config`)
-    - `language` (optional): Filter bahasa (`rust`, `typescript`, dll.)
-    - `tag` (optional): Filter tag
-    - `project` (optional): Filter sub-proyek
+    - `type` (optional): Filter tipe dokumen (`doc`, `code`, `config`; mendukung multi-value dipisahkan koma misal `code,doc`)
+    - `language` (optional): Filter bahasa (`rust`, `typescript`, dll.; mendukung multi-value dipisahkan koma)
+    - `tag` (optional): Filter tag (mendukung multi-value dipisahkan koma)
+    - `project` (optional): Filter sub-proyek (mendukung multi-value dipisahkan koma)
+    - `extension` (optional): Filter ekstensi berkas (`rs`, `md`, dll.; mendukung multi-value dipisahkan koma misal `rs,py`)
     - `sort` (optional, default `relevance`): `relevance` | `modified_desc` | `modified_asc` | `size_desc` | `size_asc`
   - **Response (200 OK)**:
     ```json
@@ -1168,6 +1169,7 @@ Seluruh response API menggunakan format seragam yang aman dan terstruktur.
         }
       ],
       "facets": {
+        "extensions": [{ "key": "rs", "doc_count": 1 }],
         "types": [{ "key": "code", "doc_count": 1 }],
         "languages": [{ "key": "rust", "doc_count": 1 }],
         "tags": [{ "key": "auth", "doc_count": 1 }, { "key": "security", "doc_count": 1 }],
@@ -1271,7 +1273,7 @@ Frontend dirancang mengikuti metodologi **Frontend Engineering**, pedoman **Reac
 ### 7.1 Prinsip Desain & Arsitektur Frontend
 1. **Local-First Native Feel**: Berjalan di dalam Webview Tauri 2.12 dengan integrasi OS native (dialog file picker, shell execution untuk membuka default editor, dan copy-paste clipboard).
 2. **Strict State Separation**:
-   - **Server State (TanStack Query v5)**: Caching hasil query, background job polling, periodic health status check, dan query cancellation.
+   - **Server State (TanStack Query v5)**: Caching hasil query, background job polling, periodic health status check, query cancellation, serta kontinuitas cache via `placeholderData: keepPreviousData` pada query pencarian untuk mencegah flicker/skeleton berkedip saat pergantian filter atau pagination.
    - **Client UI State (Zustand 5)**: State filter aktif, query input teks, selected document ID, layout sidebar/preview collapse, dan visual theme.
    - **Component Local State (React hooks)**: State lokal yang tidak perlu dibagikan (hover, open popover, transient form inputs).
 3. **4 Micro-States Contract**: Setiap komponen yang bergantung pada data wajib mengimplementasikan 4 state (Loading, Empty, Error, Success). *Spesifikasi visual, animasi pulse, dan perilaku pemulihan didokumentasikan di [DESIGN.md Section 5](file:///mnt/windows/Users/boyblanco/Documents/code/web/Rust_LynxSearch/DESIGN.md#5-kontrak-4-micro-states-frontend-engineering-standard).*
@@ -1679,7 +1681,7 @@ Diletakkan berdampingan dengan kode modul (`#[cfg(test)] mod tests`):
   - Determinisme rencana scan: kalkulasi akurat kategori `to_add`, `to_update` (hash berubah), `to_delete` (file fisik hilang), dan `to_skip` (hash & mtime identik).
   - Idempotensi: eksekusi kedua berturut-turut pada state yang sama wajib menghasilkan `ScanPlan` kosong.
 - **`SearchQueryBuilder`**:
-  - Validasi pembentukan JSON Elasticsearch Query DSL: pembobotan field (`title^3.0`, `tags^2.0`, `content^1.0`), isolasi filter di `bool.filter`, klausa `fuzzy` dan `prefix`, serta definisi `aggs`.
+  - Validasi pembentukan JSON Elasticsearch Query DSL: pembobotan field (`title^3.0`, `tags^2.0`, `content^1.0`), isolasi filter di `post_filter` (menjaga integritas agregasi facet multi-select), klausa `fuzzy` dan `prefix`, serta definisi `aggs`.
 
 #### 2. Integration Tests (PostgreSQL 18.6 & Elasticsearch 8.19.22 Nyata)
 Diletakkan di direktori `crates/backend/tests/`:
