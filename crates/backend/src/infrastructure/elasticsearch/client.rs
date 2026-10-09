@@ -383,10 +383,74 @@ impl SearchRepository for EsSearchRepository {
         Ok(SearchRawResponse { raw_json, took_ms })
     }
 
-    async fn suggest(&self, _prefix: &str, _limit: usize) -> Result<Vec<String>, AppError> {
-        Err(AppError::SearchEngine(
-            "suggest not implemented yet (scheduled for Phase 6)".to_string(),
-        ))
+    async fn suggest(&self, prefix: &str, limit: usize) -> Result<Vec<String>, AppError> {
+        let trimmed = prefix.trim();
+        if trimmed.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let fetch_size = limit.max(1).saturating_mul(2).min(100);
+        let query_body = serde_json::json!({
+            "size": fetch_size,
+            "_source": ["title"],
+            "query": {
+                "match": {
+                    "title.suggest": {
+                        "query": trimmed,
+                        "operator": "and"
+                    }
+                }
+            }
+        });
+
+        let response = match self
+            .client
+            .search(SearchParts::Index(&[&self.search_target]))
+            .body(query_body)
+            .send()
+            .await
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                return Err(AppError::SearchEngine(format!(
+                    "Elasticsearch connection or network failure in suggest: {e}"
+                )));
+            }
+        };
+
+        if !response.status_code().is_success() {
+            let status = response.status_code();
+            let body = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "<unreadable error body>".to_string());
+            return Err(AppError::SearchEngine(format!(
+                "Elasticsearch suggest returned status {status}: {body}"
+            )));
+        }
+
+        let res_val: serde_json::Value = response.json().await.map_err(|e| {
+            AppError::SearchEngine(format!("Failed to parse suggest response JSON: {e}"))
+        })?;
+
+        let mut suggestions = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+
+        if let Some(hits) = res_val["hits"]["hits"].as_array() {
+            for hit in hits {
+                if let Some(title) = hit["_source"]["title"].as_str() {
+                    let clean_title = title.trim();
+                    if !clean_title.is_empty() && seen.insert(clean_title.to_lowercase()) {
+                        suggestions.push(clean_title.to_string());
+                        if suggestions.len() >= limit {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(suggestions)
     }
 
     async fn rebuild_index_with_alias(&self, new_index: &str, alias: &str) -> Result<(), AppError> {
