@@ -12,6 +12,8 @@ import {
   useCancelJobMutation,
   useDocumentDetailQuery,
   useSettingsQuery,
+  useUpdateSettingsMutation,
+  useResetSettingsMutation,
   useStatsQuery,
   useDebounce,
 } from '../hooks';
@@ -109,6 +111,39 @@ describe('TanStack Query Hooks', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data?.total).toBe(1);
     expect(result.current.data?.items[0].title).toBe('Auth Doc');
+  });
+
+  it('useSearchQuery passes sort parameter in query request', async () => {
+    let capturedUrl = '';
+    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      capturedUrl = url;
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            query: 'auth',
+            page: 1,
+            size: 20,
+            total: 0,
+            took_ms: 5,
+            items: [],
+            results: [],
+            facets: { extensions: [], types: [], languages: [], tags: [], projects: [] },
+            warnings: [],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+      );
+    });
+
+    const { wrapper } = createTestWrapper();
+    const { result } = renderHook(
+      () => useSearchQuery({ q: 'auth', sort: 'modified_desc', page: 2 }),
+      { wrapper },
+    );
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(capturedUrl).toContain('sort=modified_desc');
+    expect(capturedUrl).toContain('page=2');
   });
 
   it('useSuggestQuery fetches suggestions for query term', async () => {
@@ -328,6 +363,57 @@ describe('TanStack Query Hooks', () => {
 
     expect(settingsResult.current.data?.weights.title).toBe(3.0);
     expect(statsResult.current.data?.total_documents).toBe(100);
+  });
+
+  it('useUpdateSettingsMutation and useResetSettingsMutation invalidate search queries cache', async () => {
+    const updatedSettings = {
+      max_file_size_bytes: 4194304,
+      weights: { title: 5.0, tags: 3.0, content: 1.5 },
+      ignore_patterns: ['.git', 'node_modules'],
+    };
+
+    const defaultSettings = {
+      max_file_size_bytes: 2097152,
+      weights: { title: 3.0, tags: 2.0, content: 1.0 },
+      ignore_patterns: ['.git', 'node_modules', 'target', 'dist', 'build'],
+    };
+
+    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('/api/settings/reset')) {
+        return Promise.resolve(
+          new Response(JSON.stringify(defaultSettings), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify(updatedSettings), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    });
+
+    const { queryClient, wrapper } = createTestWrapper();
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+
+    const { result: updateHook } = renderHook(() => useUpdateSettingsMutation(), { wrapper });
+    await act(async () => {
+      await updateHook.current.mutateAsync({
+        weights: { title: 5.0, tags: 3.0, content: 1.5 },
+      });
+    });
+
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['search'] });
+
+    const { result: resetHook } = renderHook(() => useResetSettingsMutation(), { wrapper });
+    await act(async () => {
+      await resetHook.current.mutateAsync();
+    });
+
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['settings'] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['search'] });
   });
 
   it('useDebounce delays value propagation', () => {
