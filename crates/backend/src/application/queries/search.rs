@@ -240,6 +240,24 @@ pub async fn execute_search(
             .collect(),
     };
 
+    // Safe query context logging (truncated to 128 chars to avoid log injection/flooding)
+    let safe_query = if raw_q.chars().count() > 128 {
+        let truncated: String = raw_q.chars().take(128).collect();
+        format!("{truncated}...")
+    } else {
+        raw_q.to_string()
+    };
+
+    tracing::info!(
+        query = %safe_query,
+        page = request.page(),
+        size = request.size(),
+        total_hits = exec_result.total,
+        took_ms = exec_result.took_ms,
+        warning_count = parsed_query.warnings.len(),
+        "Executed search query"
+    );
+
     // 7. Bentuk SearchResponseDto (items dan results disediakan untuk kompatibilitas ganda)
     Ok(SearchResponseDto {
         query: request.normalized_query().unwrap_or("").to_string(),

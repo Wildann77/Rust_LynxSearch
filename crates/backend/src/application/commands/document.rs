@@ -56,14 +56,35 @@ pub async fn index_or_restore_document(
         .ok_or_else(|| AppError::FolderNotFound(folder_id.into_inner()))?;
 
     // 2. Verify file path boundary and existence on disk
-    let abs_path = folder.path.join(&norm_rel_path);
-    if !abs_path.starts_with(&folder.path) {
+    let norm_path = std::path::Path::new(&norm_rel_path);
+    if norm_path.is_absolute() || norm_rel_path.contains("..") || norm_rel_path.contains('\0') {
         return Err(AppError::PathTraversal(
             "Access to path outside allowed folder is forbidden.".to_string(),
         ));
     }
 
-    if !abs_path.is_file() {
+    let abs_path = folder.path.join(&norm_rel_path);
+    let canonical_root = folder.path.canonicalize().map_err(|e| {
+        AppError::Io(std::io::Error::new(
+            e.kind(),
+            format!("Failed to canonicalize folder root: {e}"),
+        ))
+    })?;
+
+    let canonical_doc = abs_path.canonicalize().map_err(|e| match e.kind() {
+        std::io::ErrorKind::NotFound => AppError::ValidationFailed(format!(
+            "Target file does not exist on disk: {norm_rel_path}"
+        )),
+        _ => AppError::PathTraversal(format!("Failed to canonicalize document path: {e}")),
+    })?;
+
+    if !canonical_doc.starts_with(&canonical_root) {
+        return Err(AppError::PathTraversal(
+            "Access to path outside allowed folder is forbidden.".to_string(),
+        ));
+    }
+
+    if !canonical_doc.is_file() {
         return Err(AppError::ValidationFailed(format!(
             "Target file does not exist on disk: {norm_rel_path}"
         )));
@@ -73,7 +94,7 @@ pub async fn index_or_restore_document(
 
     // 3. Read file content safely
     let read_options = ReadOptions::new(Some(settings.max_file_size_bytes));
-    let payload = file_reader.read_file(&abs_path, &read_options).await?;
+    let payload = file_reader.read_file(&canonical_doc, &read_options).await?;
 
     // 4. Extract content
     let extractor = DocumentExtractor::new();

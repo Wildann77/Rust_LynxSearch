@@ -30,36 +30,41 @@ pub async fn get_document_detail(
 
     // 3. Path traversal defense
     let rel_path_str = &entry.relative_path;
-    if rel_path_str.contains("..") || rel_path_str.contains('\0') {
+    let rel_path = Path::new(rel_path_str);
+    if rel_path.is_absolute() || rel_path_str.contains("..") || rel_path_str.contains('\0') {
         return Err(AppError::PathTraversal(
             "Relative path contains forbidden traversal characters".into(),
         ));
     }
 
-    let abs_path = folder.path.join(rel_path_str);
+    let abs_path = folder.path.join(rel_path);
 
-    // Canonicalize paths when possible to verify containment
-    if let (Ok(canonical_root), Ok(canonical_doc)) =
-        (folder.path.canonicalize(), abs_path.canonicalize())
-    {
-        if !canonical_doc.starts_with(&canonical_root) {
-            return Err(AppError::PathTraversal(
-                "Document path is outside registered folder boundary".into(),
-            ));
-        }
-    } else if !abs_path.starts_with(&folder.path) {
+    // Canonicalize paths to verify containment and prevent symlink escape
+    let canonical_root = folder.path.canonicalize().map_err(|e| {
+        AppError::Io(std::io::Error::new(
+            e.kind(),
+            format!("Failed to canonicalize folder root: {e}"),
+        ))
+    })?;
+
+    let canonical_doc = abs_path.canonicalize().map_err(|e| match e.kind() {
+        std::io::ErrorKind::NotFound => AppError::DocumentNotFound(doc_id.into_inner()),
+        _ => AppError::PathTraversal(format!("Failed to canonicalize document path: {e}")),
+    })?;
+
+    if !canonical_doc.starts_with(&canonical_root) {
         return Err(AppError::PathTraversal(
             "Document path is outside registered folder boundary".into(),
         ));
     }
 
-    if !abs_path.is_file() {
+    if !canonical_doc.is_file() {
         return Err(AppError::DocumentNotFound(doc_id.into_inner()));
     }
 
     // 4. Read file content via file reader
     let read_options = ReadOptions::new(Some(settings.max_file_size_bytes));
-    let payload = file_reader.read_file(&abs_path, &read_options).await?;
+    let payload = file_reader.read_file(&canonical_doc, &read_options).await?;
 
     // 5. Extract document metadata and text content
     let extractor = DocumentExtractor::new();
