@@ -5,6 +5,7 @@ pub mod domain;
 pub mod error;
 pub mod infrastructure;
 pub mod state;
+pub mod telemetry;
 
 pub use api::routes::{create_router, create_router_with_state, create_router_with_timeout};
 pub use application::{
