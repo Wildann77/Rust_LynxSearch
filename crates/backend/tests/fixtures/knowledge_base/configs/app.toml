@@ -1,0 +1,10 @@
+[server]
+host = "127.0.0.1"
+port = 3001
+
+[database]
+max_connections = 10
+timeout_seconds = 30
+
+[indexing]
+batch_size = 100
