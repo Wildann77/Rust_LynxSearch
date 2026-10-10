@@ -50,9 +50,14 @@ export default defineConfig({
               return 'vendor-ui';
             }
             if (
-              /[\\/]node_modules[\\/](react-markdown|shiki|remark-gfm|micromark)[\\/]/.test(id)
+              /[\\/]node_modules[\\/](react-markdown|remark-gfm|micromark)[\\/]/.test(id)
             ) {
               return 'vendor-markdown';
+            }
+            if (
+              /[\\/]node_modules[\\/]@shikijs[\\/](core|engine-javascript)[\\/]/.test(id)
+            ) {
+              return 'vendor-shiki';
             }
           }
         },
