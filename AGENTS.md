@@ -64,6 +64,11 @@ Semua dependensi dan versi harus mengacu pada spesifikasi resmi berikut:
   - *GTK File Dialog Geometry & Parenting:* Auto-clamp `org.gtk.Settings.FileChooser window-size` ke `(900, 560)` dan wajib kaitkan parent window via `builder.set_parent(&window)` agar dialog berstatus modal transient dan tidak pernah muncul tertutup di belakang window utama. Ketika dialog dibatalkan oleh pengguna, bridge mengembalikan `null` langsung tanpa memicu dialog kedua.
   - *Window Stacking & Tiling Manager:* Enforce `set_always_on_top(false)` di runtime backend dan pastikan ekstensi tiling GNOME (seperti Forge) menonaktifkan `float-always-on-top-enabled` agar window dapat ditutup/ditumpuk secara wajar oleh aplikasi lain (IDE, Terminal, dll.). Gunakan native command `focus_window` (`unminimize` + `set_focus` saja) dengan permission `core:window:allow-set-focus`. DILARANG memicu RPC mutasi window (`maximize_window`, `focus_window`) di root evaluation JS (`main.tsx`) atau spam listener `mousedown` global, karena memicu race condition pada Clutter actor saat siklus paint Wayland. Biarkan `tauri-plugin-window-state` menangani restorasi geometri secara aman.
   - *Gesture Zoom Blocking:* Intersepsi dan buang event `gdk::EventType::TouchpadPinch` pada level widget GTK via `webview.connect_event` (`glib::Propagation::Stop`) serta pasang `connect_zoom_level_notify` guard; sediakan keyboard zoom terkontrol via native command `set_desktop_zoom` (`Ctrl +`, `Ctrl -`, `Ctrl 0`).
+- **PWA & Mobile Companion Guardrails:**
+  - *Dual-Runtime Isolation:* Frontend berbagi satu basis kode React 19 antara desktop Tauri dan PWA mobile. Seluruh pemanggilan fungsi OS native WAJIB diisolasi di balik guard `isTauriEnvironment()` di [desktop-bridge.ts](file:///mnt/windows/Users/boyblanco/Documents/code/web/Rust_LynxSearch/apps/desktop/src/lib/desktop-bridge.ts). Di lingkungan PWA mobile, pemilih folder OS dan aksi open-in-editor didegradasi secara anggun (*graceful notice/disabled*), sedangkan fungsi salin clipboard menggunakan Web Clipboard API (`navigator.clipboard.writeText`).
+  - *Bundle Budget Gate Preservation:* Penambahan plugin `vite-plugin-pwa` dan runtime Workbox DILARANG melanggar batas ukuran bundle gzip frontend (`scripts/bundle-budget-checker.py --max-js 450 --max-css 50`). Seluruh route `/api/*` wajib berstrategi `NetworkOnly` (dilarang meng-cache data pencarian ke service worker).
+  - *Responsive Single-Pane Standard:* Pada layar mobile (`viewport < 768px`), layout 3-pane diubah menjadi alur satu kolom (single-pane search + full-screen preview slide dengan tombol kembali) dan filter facet dipindahkan ke bottom drawer/sheet dengan touch target minimal 44px x 44px (WCAG 2.5.5).
+  - *Dynamic Backend URL:* Client API mengevaluasi URL host backend dinamis dari `localStorage.getItem('LYNX_BACKEND_URL')` sebelum fallback ke origin saat ini atau `VITE_BACKEND_URL`.
 
 ### 2.3 Data Store & Infrastruktur (Docker Compose)
 - **PostgreSQL:** 18.6-alpine (Container: `lynx_postgres`, port default `127.0.0.1:5432`).
@@ -117,9 +122,10 @@ LynxSearch menerapkan **Clean Hexagonal Architecture (Ports and Adapters)** seca
    - Mengimplementasikan traits dari output ports: `PgMetadataRepository` (SQLx), `EsSearchRepository` (Elasticsearch), `LocalFileSystemDriver`.
 4. **API Layer (`crates/backend/src/api/`)**:
    - Memetakan HTTP request ke DTO tervalidasi, memanggil use case, menangani serialisasi JSON, dan mengubah Domain Error menjadi respons HTTP standar.
-5. **Desktop Client (`apps/desktop/`)**:
+5. **Desktop Client & Mobile PWA Companion (`apps/desktop/`)**:
    - **Tauri adalah proses independen.** Backend bukan sidecar tertanam dan tidak di-compile di dalam binary Tauri.
-   - Frontend **TIDAK MEMILIKI** logika pencarian, ekstraksi dokumen, perankingan BM25, atau parsing query. Seluruh pemrosesan data dilakukan via HTTP REST ke backend (`127.0.0.1:3001`).
+   - Frontend **TIDAK MEMILIKI** logika pencarian, ekstraksi dokumen, perankingan BM25, atau parsing query. Seluruh pemrosesan data dilakukan via HTTP REST ke backend (`127.0.0.1:3001` di desktop, atau host LAN di PWA mobile).
+   - Mode PWA di mobile beroperasi sebagai Remote Companion Client untuk mencari, membaca dokumen/kode, dan memicu re-scan; fungsionalitas native desktop Tauri tetap dipertahankan 100% tanpa regresi.
 
 ### 3.2 Single Source of Truth
 - **Isi Dokumen**: Berkas lokal di disk pengguna adalah satu-satunya sumber kebenaran isi. Isi dokumen **TIDAK** diduplikasi ke PostgreSQL.

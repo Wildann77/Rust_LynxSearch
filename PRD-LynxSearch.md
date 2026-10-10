@@ -169,6 +169,14 @@ Pembaruan index dilakukan **manual dan inkremental**: developer menekan Import a
 78. Sebagai pembelajar, saya ingin log terstruktur di backend, agar saya bisa menelusuri apa yang terjadi saat indexing dan pencarian.
 79. Sebagai pembelajar, saya ingin dokumentasi singkat tiap keputusan arsitektur, agar saya bisa menjelaskan alasan desain saat menjadikannya portofolio.
 
+### L. Mobile Companion & PWA Client
+
+80. Sebagai developer, saya ingin mengakses LynxSearch dari browser ponsel/tablet melalui Progressive Web App (PWA) di jaringan lokal yang sama, agar saya dapat membaca catatan dan mencari kode secara santai tanpa harus berada di depan laptop/PC.
+81. Sebagai developer di perangkat mobile, saya ingin antarmuka responsif satu kolom dengan panel preview layar penuh dan drawer filter bawah, agar pengalaman membaca dokumen dan cuplikan kode di layar sentuh kecil tetap optimal.
+82. Sebagai developer mobile, saya ingin dapat mengatur alamat IP/host backend PC lokal secara dinamis di form pengaturan PWA, agar aplikasi mobile dapat langsung tersambung ke backend PC tanpa perlu rebuild kode.
+83. Sebagai developer mobile, saya ingin dapat memicu re-scan pada folder yang telah terdaftar dari ponsel saya, agar indeks pencarian tetap terbarui saat saya mengubah berkas di PC.
+84. Sebagai developer desktop, saya ingin penambahan fitur PWA mobile companion tidak merusak atau mengubah fungsionalitas native desktop Tauri yang sudah berjalan sedikit pun.
+
 ---
 
 ## Implementation Decisions
@@ -342,8 +350,9 @@ Proyek ini greenfield sehingga belum ada test pendahulu di basis kode. Konvensi 
 | 6 | Tauri UI | Kotak pencarian, hasil, preview, manajemen folder, progres |
 | 7 | Advanced search | Query Parser, filter inline, facet, fuzzy, prefix, autocomplete, sorting, tuning BM25 |
 | 8 | Code search | File kode dan konfigurasi, analyzer identifier, snippet dengan nomor baris, filter bahasa dan tipe |
+| 9 | Mobile Companion & PWA | Progressive Web App, manifest, service worker precaching, responsive single-pane layout, remote LAN connection |
 
-Fase 1–6 menghasilkan aplikasi yang sudah bisa dipakai; Fase 7–8 menjadikannya proyek portofolio yang kuat.
+Fase 1–6 menghasilkan aplikasi desktop inti; Fase 7–8 menyempurnakan pencarian teks dan kode; Fase 9 memperluas aksesibilitas multi-device via PWA mobile companion.
 
 ### Pemetaan milestone belajar Elasticsearch
 

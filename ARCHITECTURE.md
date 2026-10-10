@@ -1473,6 +1473,66 @@ Untuk menangani file source code dan catatan dengan ribuan baris tanpa penurunan
 
 ---
 
+### 7.7 Arsitektur PWA & Mobile Companion Mode
+
+Aplikasi mendukung mode **Progressive Web App (PWA)** sebagai klien pendamping (*Remote Companion Client*) untuk mengakses indeks pencarian dan membaca dokumen dari perangkat mobile/tablet di jaringan lokal (LAN/WiFi):
+
+```text
+┌──────────────────────────────────────┐       ┌─────────────────────────────────────────┐
+│     Mobile / Tablet PWA Client       │       │            Host PC / Workstation        │
+│  (Chrome Android / Safari iOS PWA)   │       │                                         │
+│                                      │       │  ┌───────────────────────────────────┐  │
+│  - React 19.3 Single-Pane UI         │ HTTP  │  │        Axum 0.8 Backend           │  │
+│  - Service Worker Pre-cached Shell   ├───────┼─►│  - Port 3001 (Bind 0.0.0.0)       │  │
+│  - Dynamic Backend URL Config        │ (LAN) │  │  - ServeDir: apps/desktop/dist    │  │
+│  - Read/Search + Re-scan Trigger     │       │  │  - JSON REST APIs (/api/*)        │  │
+└──────────────────────────────────────┘       │  └───────────────┬───────────────────┘  │
+                                               │                  │                      │
+┌──────────────────────────────────────┐       │                  ▼                      │
+│     Desktop Native Client (Tauri)    │       │  ┌───────────────────────────────────┐  │
+│  (Linux / Windows / macOS App)       │       │  │  Docker Compose                   │  │
+│                                      │ IPC/  │  │  - PostgreSQL 18.6 (Metadata)     │  │
+│  - 3-Pane Full Desktop Workspace     ├───────┤  │  - Elasticsearch 8.19 (Search)    │  │
+│  - Native File Dialog & Editor Shell │ HTTP  │  └───────────────────────────────────┘  │
+└──────────────────────────────────────┘       └─────────────────────────────────────────┘
+```
+
+#### 1. Dual-Runtime Isolation via Desktop Bridge
+Frontend berbagi satu basis kode (*single codebase*) antara desktop Tauri dan web/PWA mobile. Modul `desktop-bridge.ts` mendeteksi runtime via `isTauriEnvironment()`:
+- **Desktop Tauri (`true`)**: Menjalankan native commands (`pick_folder`, `open_file_in_editor`, `reveal_file_in_folder`, `focus_window`).
+- **Mobile/Web PWA (`false`)**: Menolak operasi native secara anggun (*graceful notice*), mengarahkan pengguna bahwa penambahan folder baru dilakukan di host PC, serta mengaktifkan fallback Web Clipboard API (`navigator.clipboard.writeText`).
+
+#### 2. Dual-Serving Strategy, LAN Connectivity & ADB Reverse Workflow
+- **ADB Reverse Workflow (Sangat Direkomendasikan untuk Android)**:
+  - Hubungkan perangkat Android ke PC via USB debugging.
+  - Jalankan perintah:
+    ```bash
+    adb reverse tcp:3001 tcp:3001
+    adb reverse tcp:5173 tcp:5173 # saat dev server Vite aktif
+    ```
+  - **Keuntungan**:
+    1. Browser Chrome di Android langsung mengakses `http://localhost:3001` (atau `localhost:5173`).
+    2. Chrome menganggap `localhost` sebagai *Trustworthy Origin*, sehingga PWA Service Worker & instalasi Web App langsung aktif tanpa butuh sertifikat SSL/HTTPS.
+    3. Backend URL tetap menggunakan default `http://127.0.0.1:3001` tanpa perlu mengubah IP WiFi.
+    4. Bebas isolasi firewall router dan fluktuasi sinyal WiFi.
+- **Alternatif WiFi / LAN Subnet**:
+  - Development: Vite dev server berjalan dengan opsi `--host` (`apps/desktop` di port 5173).
+  - Production: Backend Axum mengintegrasikan middleware `tower_http::services::ServeDir` untuk menyajikan berkas statis `apps/desktop/dist` langsung pada port `3001` (dengan fallback SPA ke `index.html`). Listener Axum diikat (*bound*) ke `0.0.0.0:3001` sehingga perangkat mobile di subnet WiFi yang sama dapat membuka PWA via `http://<IP-PC>:3001`.
+
+#### 3. Dynamic Backend URL & Storage Persistence
+Modul `apps/desktop/src/api/config.ts` mengevaluasi resolusi URL secara bertingkat:
+1. Nilai kustom dari `localStorage.getItem('LYNX_BACKEND_URL')` (dapat dikonfigurasi pengguna melalui Settings Modal di perangkat mobile).
+2. Jika diakses via browser pada origin yang sama dengan backend (Axum ServeDir), gunakan `window.location.origin`.
+3. Fallback nilai environment build `import.meta.env.VITE_BACKEND_URL` atau `http://127.0.0.1:3001`.
+
+#### 4. Service Worker Pre-caching (`vite-plugin-pwa`)
+- Menggunakan Workbox dengan strategi `generateSW` dan `registerType: 'autoUpdate'`.
+- **Precache Manifest**: Meng-cache asset statis inti (`.html`, `.js`, `.css`, `.svg`, dan WebAssembly Shiki).
+- **Network Exclusions**: Seluruh request ke endpoint `/api/*` dialokasikan ke strategi `NetworkOnly` untuk memastikan hasil pencarian dan status job selalu konsisten dengan database.
+- **Manifest Kontrak**: Mendukung mode `display: "standalone"`, tema warna `#09090b` (sinkron token background OpenAI Dark Minimalist), dan ikon maskable standar PWA.
+
+---
+
 ## 8. Aspek Lintas Batas (Cross-Cutting Concerns) & Keamanan
 
 ### 8.1 Structured Error Handling & Katalog Kode Error

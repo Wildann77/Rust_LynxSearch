@@ -246,6 +246,41 @@ Aplikasi desktop LynxSearch menggunakan tata letak **3-Pane Split View** profesi
      - **Markdown**: Komponen `react-markdown` + GFM dengan style tipografi editorial.
      - **Code**: `VirtualizedCodeViewer` dengan penomoran baris, syntax highlighting Shiki, auto-scroll baris cocok, dan tanda highlight `<mark>`.
 
+### 4.2 Spesifikasi Antarmuka Responsif Mobile & PWA Companion Mode (Viewport < 768px)
+
+Untuk kenyamanan penggunaan pada smartphone Android / tablet melalui Progressive Web App, antarmuka desktop 3-pane beradaptasi menjadi hierarki responsif satu kolom (*Single-Pane Adaptive Workflow*):
+
+```text
+┌──────────────────────────────────────┐
+│  TopBar (Logo, Search, Filter Btn)   │
+├──────────────────────────────────────┤
+│                                      │
+│  State A: Hasil Pencarian Penuh      │
+│  - Filter Chips Horisontal (Scroll)  │
+│  - Kartu Hasil (Touch target >= 44px)│
+│                                      │
+│  Tap Kartu ──► Slide ke State B      │
+│                                      │
+│  State B: Full-screen Preview        │
+│  - Header: [<- Kembali] [Salin]      │
+│  - Virtualized Code / Markdown       │
+│                                      │
+└──────────────────────────────────────┘
+```
+
+1. **Navigasi Satu Kolom (Single-Pane Workflow)**:
+   - Layar default berfokus murni pada TopBar pencarian dan daftar hasil pencarian penuh.
+   - Mengetuk kartu hasil pencarian membuka Document Preview Panel secara penuh (*full-screen view*) dengan tombol navigasi `Kembali ke Hasil` (`ArrowLeft`) di header.
+2. **Sheet Drawer Filter Facet**:
+   - Sidebar filter kiri (260px) disembunyikan pada viewport `< 768px`.
+   - Tombol ikon filter (`SlidersHorizontal`) di TopBar memicu kemunculan Drawer/Sheet dari bawah layar (*Bottom Sheet*), menampilkan checkbox agregasi facet dengan touch-target nyaman.
+3. **Ergonomi Sentuh & Aksesibilitas (WCAG 2.5.5)**:
+   - Target sentuh minimum `44px x 44px` untuk semua tombol aksi, checkbox, dan chip filter.
+   - Mikro-interaksi sentuh menggunakan `active:scale-[0.98] transition-transform duration-100` untuk memberikan tactile feedback instan.
+4. **PWA Standalone & Safe-Area Padding**:
+   - Kontainer aplikasi menyertakan CSS padding `env(safe-area-inset-top)` dan `env(safe-area-inset-bottom)` agar tidak terpotong oleh kamera notch atau bilah gestur navigasi Android.
+   - Status bar peramban menyatu mulus dengan warna latar `#09090b` (`meta name="theme-color"`).
+
 ---
 
 ## 5. Kontrak 4 Micro-States (Frontend Engineering Standard)

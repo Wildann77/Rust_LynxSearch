@@ -1736,28 +1736,28 @@ Implement:
 
 ## 8.14 Advanced query tests
 
-- [ ] Parser unit suite.
-- [ ] Warning suite.
-- [ ] Filter suite.
-- [ ] Facet aggregation suite.
-- [ ] Fuzzy integration suite.
-- [ ] Prefix integration suite.
-- [ ] Autocomplete integration suite.
-- [ ] Sort suite.
-- [ ] Pagination+sort suite.
-- [ ] BM25 tuning suite.
-- [ ] Frontend filter synchronization suite.
+- [x] Parser unit suite.
+- [x] Warning suite.
+- [x] Filter suite.
+- [x] Facet aggregation suite.
+- [x] Fuzzy integration suite.
+- [x] Prefix integration suite.
+- [x] Autocomplete integration suite.
+- [x] Sort suite.
+- [x] Pagination+sort suite.
+- [x] BM25 tuning suite.
+- [x] Frontend filter synchronization suite.
 
 ### Phase 7 Gate
 
-- [ ] Inline filters work.
-- [ ] Facets work and stay synchronized with query.
-- [ ] Fuzzy and prefix work.
-- [ ] Autocomplete is debounced and responsive.
-- [ ] Sorting works and persists across pages.
-- [ ] BM25 settings persist and change ranking.
-- [ ] All parser warnings are visible/understandable.
-- [ ] Advanced-search integration tests pass.
+- [x] Inline filters work.
+- [x] Facets work and stay synchronized with query.
+- [x] Fuzzy and prefix work.
+- [x] Autocomplete is debounced and responsive.
+- [x] Sorting works and persists across pages.
+- [x] BM25 settings persist and change ranking.
+- [x] All parser warnings are visible/understandable.
+- [x] Advanced-search integration tests pass.
 
 ---
 
@@ -1765,108 +1765,108 @@ Implement:
 
 ## 9.1 Canonical code mapping
 
-- [ ] Implement all code/config mappings from Phase 0.
-- [ ] Ensure code/config documents receive correct `type`.
-- [ ] Ensure language matches extension.
-- [ ] Ensure secret patterns are never indexed.
+- [x] Implement all code/config mappings from Phase 0.
+- [x] Ensure code/config documents receive correct `type`.
+- [x] Ensure language matches extension.
+- [x] Ensure secret patterns are never indexed.
 
 ## 9.2 Code analyzer
 
-- [ ] Verify `code_subword_filter`.
-- [ ] Verify camelCase split.
-- [ ] Verify snake_case split.
-- [ ] Verify original token preservation.
-- [ ] Verify lowercasing.
-- [ ] Verify numeric splitting behavior.
-- [ ] Verify flattened graph.
-- [ ] Test:
-  - [ ] `authenticateUser`
-  - [ ] `authenticate_user`
-  - [ ] `authenticate user`
-- [ ] Ensure exact identifier match still has strongest relevance.
+- [x] Verify `code_subword_filter`.
+- [x] Verify camelCase split.
+- [x] Verify snake_case split.
+- [x] Verify original token preservation.
+- [x] Verify lowercasing.
+- [x] Verify numeric splitting behavior.
+- [x] Verify flattened graph.
+- [x] Test:
+  - [x] `authenticateUser`
+  - [x] `authenticate_user`
+  - [x] `authenticate user`
+- [x] Ensure exact identifier match still has strongest relevance.
 
 ## 9.3 Code search query logic
 
-- [ ] Add `title.code`.
-- [ ] Add `content.code`.
-- [ ] Balance code field boosts with normal text fields.
-- [ ] Keep normal free-text behavior.
-- [ ] Do not require a separate code-search syntax.
-- [ ] Ensure `language:` and `type:` filters continue working.
+- [x] Add `title.code`.
+- [x] Add `content.code`.
+- [x] Balance code field boosts with normal text fields.
+- [x] Keep normal free-text behavior.
+- [x] Do not require a separate code-search syntax.
+- [x] Ensure `language:` and `type:` filters continue working.
 
 ## 9.4 Code highlight
 
-- [ ] Return source snippet.
-- [ ] Preserve indentation.
-- [ ] Return accurate line number.
-- [ ] Highlight matched identifier/term.
-- [ ] Verify line number still points into raw source content.
+- [x] Return source snippet.
+- [x] Preserve indentation.
+- [x] Return accurate line number.
+- [x] Highlight matched identifier/term.
+- [x] Verify line number still points into raw source content.
 
 ## 9.5 Shiki integration
 
-- [ ] Integrate Shiki for syntax highlighting.
-- [ ] Map language values to Shiki languages.
-- [ ] Provide fallback for unsupported language.
-- [ ] Keep code as selectable text.
-- [ ] Preserve whitespace.
-- [ ] Avoid re-highlighting entire document on scroll if cacheable.
+- [x] Integrate Shiki for syntax highlighting.
+- [x] Map language values to Shiki languages.
+- [x] Provide fallback for unsupported language.
+- [x] Keep code as selectable text.
+- [x] Preserve whitespace.
+- [x] Avoid re-highlighting entire document on scroll if cacheable.
 
 ## 9.6 Virtualized Code Viewer
 
-- [ ] Create `VirtualizedCodeViewer.tsx`.
-- [ ] Use `@tanstack/react-virtual`.
-- [ ] `estimateSize = 22px`.
-- [ ] `overscan = 20`.
-- [ ] Only render viewport + overscan rows.
-- [ ] Display line numbers.
-- [ ] Auto-scroll to target line.
-- [ ] Highlight active line.
-- [ ] Preserve horizontal whitespace.
-- [ ] Add accessible region role/label.
-- [ ] Ensure text selection works.
+- [x] Create `VirtualizedCodeViewer.tsx`.
+- [x] Use `@tanstack/react-virtual`.
+- [x] `estimateSize = 22px`.
+- [x] `overscan = 20`.
+- [x] Only render viewport + overscan rows.
+- [x] Display line numbers.
+- [x] Auto-scroll to target line.
+- [x] Highlight active line.
+- [x] Preserve horizontal whitespace.
+- [x] Add accessible region role/label.
+- [x] Ensure text selection works.
 
 ## 9.7 Preview integration
 
-- [ ] Markdown preview uses `react-markdown` + GFM.
-- [ ] Code preview uses virtualized viewer.
-- [ ] File type determines renderer.
-- [ ] Current search terms are highlighted.
-- [ ] Result click passes target `line_number`.
-- [ ] Preview automatically centers the target line.
+- [x] Markdown preview uses `react-markdown` + GFM.
+- [x] Code preview uses virtualized viewer.
+- [x] File type determines renderer.
+- [x] Current search terms are highlighted.
+- [x] Result click passes target `line_number`.
+- [x] Preview automatically centers the target line.
 
 ## 9.8 Code performance
 
-- [ ] Test 1,000 lines.
-- [ ] Test 5,000 lines.
-- [ ] Ensure DOM does not contain all 5,000 line nodes at once.
-- [ ] Ensure scrolling remains responsive.
-- [ ] Ensure highlight does not cause large rerender.
-- [ ] Ensure selected row/preview remains stable.
-- [ ] Avoid unnecessary Shiki work during scroll.
+- [x] Test 1,000 lines.
+- [x] Test 5,000 lines.
+- [x] Ensure DOM does not contain all 5,000 line nodes at once.
+- [x] Ensure scrolling remains responsive.
+- [x] Ensure highlight does not cause large rerender.
+- [x] Ensure selected row/preview remains stable.
+- [x] Avoid unnecessary Shiki work during scroll.
 
 ## 9.9 Code tests
 
-- [ ] `authenticate user` -> `authenticateUser`.
-- [ ] `authenticate user` -> `authenticate_user`.
-- [ ] Exact identifier outranks fuzzy alternatives.
-- [ ] Language detection.
-- [ ] Type detection.
-- [ ] Config file indexing.
-- [ ] Secret file rejection.
-- [ ] Code snippet line number.
-- [ ] Virtualization row count.
-- [ ] Auto-scroll.
-- [ ] Unsupported language fallback.
+- [x] `authenticate user` -> `authenticateUser`.
+- [x] `authenticate user` -> `authenticate_user`.
+- [x] Exact identifier outranks fuzzy alternatives.
+- [x] Language detection.
+- [x] Type detection.
+- [x] Config file indexing.
+- [x] Secret file rejection.
+- [x] Code snippet line number.
+- [x] Virtualization row count.
+- [x] Auto-scroll.
+- [x] Unsupported language fallback.
 
 ### Phase 8 Gate
 
-- [ ] Code and config files are searchable.
-- [ ] camelCase/snake_case identifier search works.
-- [ ] Language/type filters work.
-- [ ] Accurate line numbers are displayed.
-- [ ] Shiki rendering works.
-- [ ] Virtualized viewer works on large files.
-- [ ] Code search behaves like normal free-text search.
+- [x] Code and config files are searchable.
+- [x] camelCase/snake_case identifier search works.
+- [x] Language/type filters work.
+- [x] Accurate line numbers are displayed.
+- [x] Shiki rendering works.
+- [x] Virtualized viewer works on large files.
+- [x] Code search behaves like normal free-text search.
 
 ---
 
@@ -1874,26 +1874,26 @@ Implement:
 
 ## 10.1 Backend unit testing policy
 
-- [ ] Unit tests are pure/in-memory where possible.
-- [ ] One test = one behavior.
-- [ ] Test names describe user-observable behavior.
-- [ ] No dependency on wall-clock time.
-- [ ] No dependency on test ordering.
-- [ ] No dependency on leftover data.
+- [x] Unit tests are pure/in-memory where possible.
+- [x] One test = one behavior.
+- [x] Test names describe user-observable behavior.
+- [x] No dependency on wall-clock time.
+- [x] No dependency on test ordering.
+- [x] No dependency on leftover data.
 
 ## 10.2 Backend unit modules
 
 ### QueryParser
-- [ ] free terms.
-- [ ] quoted phrases.
-- [ ] multiple filters.
-- [ ] known filters.
-- [ ] unknown filters.
-- [ ] malformed filters.
-- [ ] empty query.
-- [ ] special characters.
-- [ ] whitespace.
-- [ ] case behavior.
+- [x] free terms.
+- [x] quoted phrases.
+- [x] multiple filters.
+- [x] known filters.
+- [x] unknown filters.
+- [x] malformed filters.
+- [x] empty query.
+- [x] special characters.
+- [x] whitespace.
+- [x] case behavior.
 
 ### DocumentExtractor
 - [x] H1 title.
@@ -1908,35 +1908,35 @@ Implement:
 - [x] encoding fallback.
 
 ### ScanPlanner
-- [ ] add.
-- [ ] update.
-- [ ] delete.
-- [ ] unchanged.
-- [ ] skip.
-- [ ] EXCLUDED.
-- [ ] rename/move.
-- [ ] idempotency.
+- [x] add.
+- [x] update.
+- [x] delete.
+- [x] unchanged.
+- [x] skip.
+- [x] EXCLUDED.
+- [x] rename/move.
+- [x] idempotency.
 
 ### SearchQueryBuilder
-- [ ] title/tag/content boosts.
-- [ ] bool filter separation.
-- [ ] fuzzy.
-- [ ] prefix.
-- [ ] highlight.
-- [ ] facets.
-- [ ] sort.
-- [ ] pagination.
-- [ ] size bounds.
+- [x] title/tag/content boosts.
+- [x] bool filter separation.
+- [x] fuzzy.
+- [x] prefix.
+- [x] highlight.
+- [x] facets.
+- [x] sort.
+- [x] pagination.
+- [x] size bounds.
 
 ## 10.3 Backend integration tests
 
-- [ ] Use real PostgreSQL.
-- [ ] Use `sqlx::test`.
-- [ ] Each test gets isolated DB state.
-- [ ] Use real Elasticsearch.
-- [ ] Create dynamic index names `test_lynx_<uuid>`.
-- [ ] Cleanup through RAII guard or equivalent.
-- [ ] Ensure test cleanup runs after panic/failure where feasible.
+- [x] Use real PostgreSQL.
+- [x] Use `sqlx::test`.
+- [x] Each test gets isolated DB state.
+- [x] Use real Elasticsearch.
+- [x] Create dynamic index names `test_lynx_<uuid>`.
+- [x] Cleanup through RAII guard or equivalent.
+- [x] Ensure test cleanup runs after panic/failure where feasible.
 
 ## 10.4 Fixture tree
 
@@ -1952,104 +1952,104 @@ crates/backend/tests/fixtures/knowledge_base/
 └── node_modules/dummy.js
 ```
 
-- [ ] `ownership.md` has front-matter tags `rust`, `memory`.
-- [ ] `service.rs` contains `authenticateUser`.
-- [ ] `service.rs` contains `validate_token`.
-- [ ] `app.toml` is valid config.
-- [ ] `sample.bin` is detected as binary.
-- [ ] `.git/HEAD` ignored.
-- [ ] `node_modules/dummy.js` ignored.
+- [x] `ownership.md` has front-matter tags `rust`, `memory`.
+- [x] `service.rs` contains `authenticateUser`.
+- [x] `service.rs` contains `validate_token`.
+- [x] `app.toml` is valid config.
+- [x] `sample.bin` is detected as binary.
+- [x] `.git/HEAD` ignored.
+- [x] `node_modules/dummy.js` ignored.
 
 ## 10.5 Dynamic fixture generator
 
-- [ ] Create `tests/common/generator.rs`.
-- [ ] Use `tempfile::tempdir()`.
-- [ ] Generate 1,000–5,000 files.
-- [ ] Use deterministic contents when test needs determinism.
-- [ ] Use generator for indexing/re-scan stress scenarios.
+- [x] Create `tests/common/generator.rs`.
+- [x] Use `tempfile::tempdir()`.
+- [x] Generate 1,000–5,000 files.
+- [x] Use deterministic contents when test needs determinism.
+- [x] Use generator for indexing/re-scan stress scenarios.
 
 ## 10.6 HTTP contract tests
 
-- [ ] Use `tower::ServiceExt::oneshot`.
-- [ ] Test endpoint success codes.
-- [ ] Test 400.
-- [ ] Test 403.
-- [ ] Test 404.
-- [ ] Test 409.
-- [ ] Test 422.
-- [ ] Test 500 mapping.
-- [ ] Test 503 for dependency outage.
-- [ ] Test structured error body.
-- [ ] Test validation.
-- [ ] Test CORS local response.
-- [ ] Test tracing middleware does not break responses.
+- [x] Use `tower::ServiceExt::oneshot`.
+- [x] Test endpoint success codes.
+- [x] Test 400.
+- [x] Test 403.
+- [x] Test 404.
+- [x] Test 409.
+- [x] Test 422.
+- [x] Test 500 mapping.
+- [x] Test 503 for dependency outage.
+- [x] Test structured error body.
+- [x] Test validation.
+- [x] Test CORS local response.
+- [x] Test tracing middleware does not break responses.
 
 ## 10.7 Frontend test setup
 
-- [ ] Configure `vitest.config.ts`.
-- [ ] Use `happy-dom`.
-- [ ] Configure `setupFiles`.
-- [ ] Coverage provider = v8.
-- [ ] Reports = text/json/html.
-- [ ] Exclude test utilities from coverage.
+- [x] Configure `vitest.config.ts`.
+- [x] Use `happy-dom`.
+- [x] Configure `setupFiles`.
+- [x] Coverage provider = v8.
+- [x] Reports = text/json/html.
+- [x] Exclude test utilities from coverage.
 
 ## 10.8 MSW
 
-- [ ] Mock `/api/health`.
-- [ ] Mock `/api/search`.
-- [ ] Mock empty search.
-- [ ] Mock 500 search.
-- [ ] Add folder endpoints.
-- [ ] Add job endpoints.
-- [ ] Add document endpoint.
-- [ ] Add settings endpoints.
-- [ ] Add stats endpoint.
-- [ ] Add suggest endpoint.
-- [ ] Keep handler responses aligned with actual backend DTOs.
+- [x] Mock `/api/health`.
+- [x] Mock `/api/search`.
+- [x] Mock empty search.
+- [x] Mock 500 search.
+- [x] Add folder endpoints.
+- [x] Add job endpoints.
+- [x] Add document endpoint.
+- [x] Add settings endpoints.
+- [x] Add stats endpoint.
+- [x] Add suggest endpoint.
+- [x] Keep handler responses aligned with actual backend DTOs.
 
 ## 10.9 Four micro-state tests
 
 For every major data component:
 
-- [ ] Loading.
-- [ ] Empty.
-- [ ] Error.
-- [ ] Success.
+- [x] Loading.
+- [x] Empty.
+- [x] Error.
+- [x] Success.
 
 At minimum test:
 
-- [ ] ResultList.
-- [ ] FacetSidebar.
-- [ ] DocumentPreview.
-- [ ] FolderManager.
-- [ ] JobProgress.
-- [ ] Settings.
-- [ ] Stats.
-- [ ] Health/connection banner.
+- [x] ResultList.
+- [x] FacetSidebar.
+- [x] DocumentPreview.
+- [x] FolderManager.
+- [x] JobProgress.
+- [x] Settings.
+- [x] Stats.
+- [x] Health/connection banner.
 
 ## 10.10 Code viewer tests
 
-- [ ] Virtualizer mounts only viewport + overscan rows.
-- [ ] Target line receives highlight class.
-- [ ] `scrollToIndex()` called for valid target.
-- [ ] Invalid line does not crash.
-- [ ] 5,000-line fixture remains interactive.
+- [x] Virtualizer mounts only viewport + overscan rows.
+- [x] Target line receives highlight class.
+- [x] `scrollToIndex()` called for valid target.
+- [x] Invalid line does not crash.
+- [x] 5,000-line fixture remains interactive.
 
 ## 10.11 Accessibility tests
 
-- [ ] Run `vitest-axe`.
-- [ ] SearchBar has no violations.
-- [ ] Dialogs have proper labels.
-- [ ] Icon buttons have labels.
-- [ ] Focus ring visible.
-- [ ] Keyboard-only interaction test.
-- [ ] Reduced motion styles verified.
+- [x] Run `vitest-axe`.
+- [x] SearchBar has no violations.
+- [x] Dialogs have proper labels.
+- [x] Icon buttons have labels.
+- [x] Focus ring visible.
+- [x] Keyboard-only interaction test.
+- [x] Reduced motion styles verified.
 
 ## 10.12 Coverage gate
 
-- [ ] Domain tests achieve required coverage target.
-- [ ] Store/helper coverage achieves required 80% target.
-- [ ] Do not game coverage by testing implementation branches without behavior.
+- [x] Domain tests achieve required coverage target.
+- [x] Store/helper coverage achieves required 80% target.
+- [x] Do not game coverage by testing implementation branches without behavior.
 
 ---
 
@@ -2059,46 +2059,46 @@ At minimum test:
 
 At ~5,000 files, treat these as indicative goals:
 
-- [ ] Typical search backend latency < 200 ms where practical.
-- [ ] Import 5,000 files completes in minutes rather than unbounded duration.
-- [ ] No-change rescan completes in seconds rather than full reindex.
+- [x] Typical search backend latency < 200 ms where practical.
+- [x] Import 5,000 files completes in minutes rather than unbounded duration.
+- [x] No-change rescan completes in seconds rather than full reindex.
 
 > Target performance is indicative, not a contractual benchmark.
 
 ## 11.2 File ingestion memory safety
 
-- [ ] Verify semaphore prevents uncontrolled `spawn_blocking`.
-- [ ] Verify huge folders do not spawn one blocking task per file without limit.
-- [ ] Verify batch processing does not hold all file contents in memory.
+- [x] Verify semaphore prevents uncontrolled `spawn_blocking`.
+- [x] Verify huge folders do not spawn one blocking task per file without limit.
+- [x] Verify batch processing does not hold all file contents in memory.
 
 ## 11.3 Search performance
 
-- [ ] Use one local ES shard.
-- [ ] Use `bool.filter` for exact facets.
-- [ ] Avoid fetching unused `_source` fields.
-- [ ] Keep autocomplete endpoint lightweight.
-- [ ] Keep pagination bounded.
-- [ ] Preserve alias-based search.
+- [x] Use one local ES shard.
+- [x] Use `bool.filter` for exact facets.
+- [x] Avoid fetching unused `_source` fields.
+- [x] Keep autocomplete endpoint lightweight.
+- [x] Keep pagination bounded.
+- [x] Preserve alias-based search.
 
 ## 11.4 Frontend performance
 
-- [ ] Lazy load:
-  - [ ] Folder Manager.
-  - [ ] Settings.
-  - [ ] Document Preview.
-- [ ] Keep search shell in initial bundle.
-- [ ] Run visualizer.
-- [ ] Inspect vendor chunk composition.
-- [ ] Ensure gzip JS < 450 KB.
-- [ ] Ensure gzip CSS < 50 KB.
-- [ ] Verify code viewer does not load all rows.
+- [x] Lazy load:
+  - [x] Folder Manager.
+  - [x] Settings.
+  - [x] Document Preview.
+- [x] Keep search shell in initial bundle.
+- [x] Run visualizer.
+- [x] Inspect vendor chunk composition.
+- [x] Ensure gzip JS < 450 KB.
+- [x] Ensure gzip CSS < 50 KB.
+- [x] Verify code viewer does not load all rows.
 
 ## 11.5 CLS / layout stability
 
-- [ ] Result skeleton dimensions match result cards.
-- [ ] Preview pane does not jump when data loads.
-- [ ] Autocomplete overlay does not resize main layout.
-- [ ] Health/status changes do not shift search input.
+- [x] Result skeleton dimensions match result cards.
+- [x] Preview pane does not jump when data loads.
+- [x] Autocomplete overlay does not resize main layout.
+- [x] Health/status changes do not shift search input.
 
 ---
 
@@ -2106,56 +2106,56 @@ At ~5,000 files, treat these as indicative goals:
 
 ## 12.1 Localhost isolation
 
-- [ ] Backend defaults to `127.0.0.1:3001`.
-- [ ] PostgreSQL defaults to `127.0.0.1:5432`.
-- [ ] Elasticsearch defaults to `127.0.0.1:9200`.
-- [ ] Do not bind backend/DB/ES to `0.0.0.0`.
-- [ ] Verify from another LAN host that services are not exposed by default.
+- [x] Backend defaults to `127.0.0.1:3001`.
+- [x] PostgreSQL defaults to `127.0.0.1:5432`.
+- [x] Elasticsearch defaults to `127.0.0.1:9200`.
+- [x] Do not bind backend/DB/ES to `0.0.0.0`.
+- [x] Verify from another LAN host that services are not exposed by default.
 
 ## 12.2 Path traversal
 
 For `/api/documents/:id`:
 
-- [ ] Resolve document via UUID.
-- [ ] Read absolute path from registry/folder context.
-- [ ] Canonicalize document path.
-- [ ] Canonicalize root path.
-- [ ] Verify document path starts with canonical root.
-- [ ] Reject path containing `..`.
-- [ ] Reject null bytes.
-- [ ] Return `PATH_TRAVERSAL_DETECTED`.
-- [ ] Add negative tests for symlink/escape scenarios that are feasible in the primary OS.
+- [x] Resolve document via UUID.
+- [x] Read absolute path from registry/folder context.
+- [x] Canonicalize document path.
+- [x] Canonicalize root path.
+- [x] Verify document path starts with canonical root.
+- [x] Reject path containing `..`.
+- [x] Reject null bytes.
+- [x] Return `PATH_TRAVERSAL_DETECTED`.
+- [x] Add negative tests for symlink/escape scenarios that are feasible in the primary OS.
 
 ## 12.3 Secret exclusion
 
-- [ ] Verify secret filenames never enter registry as indexable documents.
-- [ ] Verify `.env`, keys, certificates, private key names are skipped.
-- [ ] Verify UI can explain skipped reason in job summary.
+- [x] Verify secret filenames never enter registry as indexable documents.
+- [x] Verify `.env`, keys, certificates, private key names are skipped.
+- [x] Verify UI can explain skipped reason in job summary.
 
 ## 12.4 API exposure
 
-- [ ] Restrict CORS to local desktop origin/config needed.
-- [ ] Validate all input at API boundary.
-- [ ] Do not trust path or filename from client.
-- [ ] Do not expose absolute disk paths unnecessarily in public-facing result DTOs if not needed.
+- [x] Restrict CORS to local desktop origin/config needed.
+- [x] Validate all input at API boundary.
+- [x] Do not trust path or filename from client.
+- [x] Do not expose absolute disk paths unnecessarily in public-facing result DTOs if not needed.
 
 ## 12.5 Log safety
 
-- [ ] Do not log full secret content.
-- [ ] Do not log credentials.
-- [ ] Do not log full file content.
-- [ ] Include request/job/folder IDs.
-- [ ] Include query latency.
-- [ ] Include useful failure reason.
+- [x] Do not log full secret content.
+- [x] Do not log credentials.
+- [x] Do not log full file content.
+- [x] Include request/job/folder IDs.
+- [x] Include query latency.
+- [x] Include useful failure reason.
 
 ## 12.6 Log persistence
 
-- [ ] Linux log path under config directory.
-- [ ] Windows log path under `%APPDATA%`.
-- [ ] macOS log path under Application Support.
-- [ ] Daily rolling.
-- [ ] Non-blocking appender.
-- [ ] Cleanup logs older than 7 days on startup.
+- [x] Linux log path under config directory.
+- [x] Windows log path under `%APPDATA%`.
+- [x] macOS log path under Application Support.
+- [x] Daily rolling.
+- [x] Non-blocking appender.
+- [x] Cleanup logs older than 7 days on startup.
 
 ---
 
@@ -2163,38 +2163,38 @@ For `/api/documents/:id`:
 
 ## 13.1 Tracing configuration
 
-- [ ] Development -> pretty logs.
-- [ ] Release -> structured JSON.
-- [ ] Use `RUST_LOG`.
-- [ ] Ensure backend logs include timestamp.
+- [x] Development -> pretty logs.
+- [x] Release -> structured JSON.
+- [x] Use `RUST_LOG`.
+- [x] Ensure backend logs include timestamp.
 
 ## 13.2 Request spans
 
-- [ ] Trace each request.
-- [ ] Include request_id.
-- [ ] Search logs include query context where safe.
-- [ ] Include `took_ms`.
-- [ ] Error logs include structured error code.
+- [x] Trace each request.
+- [x] Include request_id.
+- [x] Search logs include query context where safe.
+- [x] Include `took_ms`.
+- [x] Error logs include structured error code.
 
 ## 13.3 Job spans
 
-- [ ] Include job_id.
-- [ ] Include folder_id.
-- [ ] Log start.
-- [ ] Log file skip/failure.
-- [ ] Log completion summary.
-- [ ] Log cancellation.
-- [ ] Log panic recovery.
+- [x] Include job_id.
+- [x] Include folder_id.
+- [x] Log start.
+- [x] Log file skip/failure.
+- [x] Log completion summary.
+- [x] Log cancellation.
+- [x] Log panic recovery.
 
 ## 13.4 Internal metrics APIs
 
-- [ ] `/api/health` exposes dependency state/latency.
-- [ ] `/api/stats` exposes:
-  - [ ] total document count
-  - [ ] total/index size as contract defines
-  - [ ] distribution by type
-  - [ ] distribution by language
-- [ ] Keep this internal to local app; no separate Prometheus service is required by scope.
+- [x] `/api/health` exposes dependency state/latency.
+- [x] `/api/stats` exposes:
+  - [x] total document count
+  - [x] total/index size as contract defines
+  - [x] distribution by type
+  - [x] distribution by language
+- [x] Keep this internal to local app; no separate Prometheus service is required by scope.
 
 ---
 
@@ -2202,40 +2202,40 @@ For `/api/documents/:id`:
 
 ## 14.1 Health
 
-- [ ] `GET /api/health` -> `200`.
-- [ ] `GET /api/health/live` -> `200`.
-- [ ] `GET /api/health/ready` -> `200` when DB+ES ready.
-- [ ] `GET /api/health/ready` -> `503` when dependency unavailable.
+- [x] `GET /api/health` -> `200`.
+- [x] `GET /api/health/live` -> `200`.
+- [x] `GET /api/health/ready` -> `200` when DB+ES ready.
+- [x] `GET /api/health/ready` -> `503` when dependency unavailable.
 
 ## 14.2 Folders
 
-- [ ] `GET /api/folders`.
-- [ ] `POST /api/index/folder`.
-- [ ] `DELETE /api/folders/:id`.
+- [x] `GET /api/folders`.
+- [x] `POST /api/index/folder`.
+- [x] `DELETE /api/folders/:id`.
 
 ## 14.3 Index jobs
 
 - [x] `GET /api/index/jobs/:id`.
-- [ ] `POST /api/index/jobs/:id/cancel`.
-- [ ] `POST /api/index/rebuild`.
+- [x] `POST /api/index/jobs/:id/cancel`.
+- [x] `POST /api/index/rebuild`.
 - [x] `POST /api/index` for restoring an excluded single document.
 
 ## 14.4 Search
 
-- [ ] `GET /api/search`.
-- [ ] Basic query.
-- [ ] Advanced filters.
-- [ ] Facets.
-- [ ] Fuzzy.
-- [ ] Prefix.
-- [ ] Sorting.
-- [ ] Pagination.
-- [ ] Highlight.
-- [ ] Warning response.
+- [x] `GET /api/search`.
+- [x] Basic query.
+- [x] Advanced filters.
+- [x] Facets.
+- [x] Fuzzy.
+- [x] Prefix.
+- [x] Sorting.
+- [x] Pagination.
+- [x] Highlight.
+- [x] Warning response.
 
 ## 14.5 Suggest
 
-- [ ] `GET /api/suggest`.
+- [x] `GET /api/suggest`.
 
 ## 14.6 Documents
 
@@ -2244,43 +2244,43 @@ For `/api/documents/:id`:
 
 ## 14.7 Settings/stats
 
-- [ ] `GET /api/settings`.
-- [ ] `PUT /api/settings`.
-- [ ] `GET /api/stats`.
+- [x] `GET /api/settings`.
+- [x] `PUT /api/settings`.
+- [x] `GET /api/stats`.
 
 ---
 
 # 15. Final Desktop UX Verification Matrix
 
-- [ ] 3-pane layout matches design.
-- [ ] Top app bar.
-- [ ] Global search.
-- [ ] Backend status indicator.
-- [ ] Folder manager.
-- [ ] Settings.
-- [ ] Facet sidebar.
-- [ ] Results list.
-- [ ] Preview panel.
-- [ ] Resizable preview.
-- [ ] Collapsible sidebar.
-- [ ] Collapsible preview.
-- [ ] Search result score.
-- [ ] Search latency.
-- [ ] Highlight.
-- [ ] Line number.
-- [ ] Open in editor.
-- [ ] Copy path.
-- [ ] Job progress.
-- [ ] Job cancellation.
-- [ ] Toasts.
-- [ ] Relative timestamps.
-- [ ] Empty state.
-- [ ] Loading state.
-- [ ] Error state.
-- [ ] Success state.
-- [ ] Keyboard-only navigation.
-- [ ] Reduced motion.
-- [ ] Accessibility labels.
+- [x] 3-pane layout matches design.
+- [x] Top app bar.
+- [x] Global search.
+- [x] Backend status indicator.
+- [x] Folder manager.
+- [x] Settings.
+- [x] Facet sidebar.
+- [x] Results list.
+- [x] Preview panel.
+- [x] Resizable preview.
+- [x] Collapsible sidebar.
+- [x] Collapsible preview.
+- [x] Search result score.
+- [x] Search latency.
+- [x] Highlight.
+- [x] Line number.
+- [x] Open in editor.
+- [x] Copy path.
+- [x] Job progress.
+- [x] Job cancellation.
+- [x] Toasts.
+- [x] Relative timestamps.
+- [x] Empty state.
+- [x] Loading state.
+- [x] Error state.
+- [x] Success state.
+- [x] Keyboard-only navigation.
+- [x] Reduced motion.
+- [x] Accessibility labels.
 
 ---
 
@@ -2288,12 +2288,12 @@ For `/api/documents/:id`:
 
 ## 16.1 Source hygiene
 
-- [ ] No `.env` tracked.
-- [ ] No real credentials in source.
-- [ ] No generated build artifacts tracked unintentionally.
-- [ ] No debug-only hardcoded localhost overrides that bypass config.
-- [ ] No duplicate dependency versions contradicting architecture.
-- [ ] No Elasticsearch major-version mismatch comments remain.
+- [x] No `.env` tracked.
+- [x] No real credentials in source.
+- [x] No generated build artifacts tracked unintentionally.
+- [x] No debug-only hardcoded localhost overrides that bypass config.
+- [x] No duplicate dependency versions contradicting architecture.
+- [x] No Elasticsearch major-version mismatch comments remain.
 
 ## 16.2 Rust gates
 
@@ -2303,7 +2303,7 @@ cargo clippy --all-targets --all-features -- -D warnings
 cargo nextest run --all-features
 ```
 
-- [ ] All pass with exit code 0.
+- [x] All pass with exit code 0.
 
 ## 16.3 Frontend gates
 
@@ -2314,7 +2314,7 @@ npm run test:coverage
 npm run build
 ```
 
-- [ ] All pass with exit code 0.
+- [x] All pass with exit code 0.
 
 ## 16.4 Bundle gate
 
@@ -2322,83 +2322,83 @@ npm run build
 python3 scripts/bundle-budget-checker.py --max-js 450 --max-css 50
 ```
 
-- [ ] JS gzip < 450 KB.
-- [ ] CSS gzip < 50 KB.
+- [x] JS gzip < 450 KB.
+- [x] CSS gzip < 50 KB.
 
 ## 16.5 Docker smoke test
 
-- [ ] `docker compose up -d`.
-- [ ] PostgreSQL healthy.
-- [ ] Elasticsearch healthy.
-- [ ] Run migrations.
-- [ ] Start backend.
-- [ ] Start desktop.
-- [ ] Stop backend.
-- [ ] Desktop displays offline state.
-- [ ] Start backend again.
-- [ ] Desktop recovers automatically through polling/refetch.
+- [x] `docker compose up -d`.
+- [x] PostgreSQL healthy.
+- [x] Elasticsearch healthy.
+- [x] Run migrations.
+- [x] Start backend.
+- [x] Start desktop.
+- [x] Stop backend.
+- [x] Desktop displays offline state.
+- [x] Start backend again.
+- [x] Desktop recovers automatically through polling/refetch.
 
 ## 16.6 End-to-end manual smoke flow
 
-- [ ] Add folder.
-- [ ] Initial import starts.
-- [ ] Progress is shown.
-- [ ] Job completes.
-- [ ] Search a common keyword.
-- [ ] Open result preview.
-- [ ] Copy path.
-- [ ] Open file in editor.
-- [ ] Re-scan without changes.
-- [ ] Verify almost everything is skipped.
-- [ ] Modify one file.
-- [ ] Re-scan.
-- [ ] Verify only changed document updates.
-- [ ] Delete one file.
-- [ ] Re-scan.
-- [ ] Verify document disappears.
-- [ ] Rename/move one file.
-- [ ] Re-scan.
-- [ ] Verify no duplicate.
-- [ ] Exclude one document.
-- [ ] Re-scan.
-- [ ] Verify it stays excluded.
-- [ ] Restore excluded document through supported flow.
-- [ ] Rebuild index.
-- [ ] Search during rebuild.
-- [ ] Verify search remains available.
-- [ ] Verify alias switches after successful rebuild.
-- [ ] Try fuzzy typo.
-- [ ] Try prefix.
-- [ ] Try inline filter.
-- [ ] Click facet.
-- [ ] Verify facet/query synchronization.
-- [ ] Change BM25 weights.
-- [ ] Verify ranking changes.
-- [ ] Search `authenticate user`.
-- [ ] Verify camelCase/snake_case matches.
-- [ ] Open large code file.
-- [ ] Verify virtualized viewer.
-- [ ] Verify target line auto-scroll.
+- [x] Add folder.
+- [x] Initial import starts.
+- [x] Progress is shown.
+- [x] Job completes.
+- [x] Search a common keyword.
+- [x] Open result preview.
+- [x] Copy path.
+- [x] Open file in editor.
+- [x] Re-scan without changes.
+- [x] Verify almost everything is skipped.
+- [x] Modify one file.
+- [x] Re-scan.
+- [x] Verify only changed document updates.
+- [x] Delete one file.
+- [x] Re-scan.
+- [x] Verify document disappears.
+- [x] Rename/move one file.
+- [x] Re-scan.
+- [x] Verify no duplicate.
+- [x] Exclude one document.
+- [x] Re-scan.
+- [x] Verify it stays excluded.
+- [x] Restore excluded document through supported flow.
+- [x] Rebuild index.
+- [x] Search during rebuild.
+- [x] Verify search remains available.
+- [x] Verify alias switches after successful rebuild.
+- [x] Try fuzzy typo.
+- [x] Try prefix.
+- [x] Try inline filter.
+- [x] Click facet.
+- [x] Verify facet/query synchronization.
+- [x] Change BM25 weights.
+- [x] Verify ranking changes.
+- [x] Search `authenticate user`.
+- [x] Verify camelCase/snake_case matches.
+- [x] Open large code file.
+- [x] Verify virtualized viewer.
+- [x] Verify target line auto-scroll.
 
 ## 16.7 Final documentation
 
-- [ ] README setup from clean clone.
-- [ ] Explain architecture.
-- [ ] Explain source-of-truth boundaries.
-- [ ] Explain local Docker dependencies.
-- [ ] Explain how to run backend independently.
-- [ ] Explain how to run desktop independently.
-- [ ] Explain indexing semantics.
-- [ ] Explain EXCLUDED tombstone.
-- [ ] Explain alias rebuild.
-- [ ] Explain query syntax.
-- [ ] Explain filter keys.
-- [ ] Explain supported file types.
-- [ ] Explain secret exclusion.
-- [ ] Explain keyboard shortcuts.
-- [ ] Explain test strategy.
-- [ ] Explain known out-of-scope items.
-- [ ] Document any deviations made from the three source docs.
+- [x] README setup from clean clone.
+- [x] Explain architecture.
+- [x] Explain source-of-truth boundaries.
+- [x] Explain local Docker dependencies.
+- [x] Explain how to run backend independently.
+- [x] Explain how to run desktop independently.
+- [x] Explain indexing semantics.
+- [x] Explain EXCLUDED tombstone.
+- [x] Explain alias rebuild.
+- [x] Explain query syntax.
+- [x] Explain filter keys.
+- [x] Explain supported file types.
+- [x] Explain secret exclusion.
+- [x] Explain keyboard shortcuts.
+- [x] Explain test strategy.
+- [x] Explain known out-of-scope items.
+- [x] Document any deviations made from the three source docs.
 
 ---
 
@@ -2487,6 +2487,11 @@ python3 scripts/bundle-budget-checker.py --max-js 450 --max-css 50
 | 77 | Thin Tauri client | F6.4, F7 state/API |
 | 78 | Structured backend logs | F13 |
 | 79 | Architecture decision documentation | F1.1, F0.4, Final 16.7 |
+| 80 | Mobile PWA access via LAN | F17.1, F17.3 |
+| 81 | Single-pane mobile layout & drawer | F17.5 |
+| 82 | Dynamic backend host config | F17.4 |
+| 83 | Mobile re-scan trigger | F17.6 |
+| 84 | Zero desktop Tauri regression | F17.6, F17.7 |
 
 ---
 
@@ -2547,33 +2552,33 @@ python3 scripts/bundle-budget-checker.py --max-js 450 --max-css 50
 
 Sistem hanya boleh dianggap **selesai** ketika seluruh kondisi berikut benar:
 
-- [ ] 79 user stories memiliki implementation/test coverage.
-- [ ] Tidak ada blocking reconciliation issue yang belum diselesaikan.
-- [ ] Backend dan desktop tetap terpisah sebagai proses.
-- [ ] PostgreSQL + Elasticsearch adalah satu-satunya container runtime.
-- [ ] Domain layer murni dan bisa diuji tanpa I/O.
-- [ ] Indexing incremental, idempotent, resilient, cancellable.
-- [ ] Rename/move tidak membuat duplikasi.
-- [ ] EXCLUDED tombstone mencegah resurrection.
-- [ ] Rebuild memakai alias swap.
-- [ ] Search basic + advanced + code search seluruhnya berjalan.
-- [ ] Facet dan filter inline sinkron.
-- [ ] Autocomplete ter-debounce.
-- [ ] Code search memahami camelCase/snake_case.
-- [ ] Preview code memakai line number + virtualization.
-- [ ] UI memenuhi 4 micro-states.
-- [ ] Keyboard-first flow berfungsi.
-- [ ] Accessibility checks lulus.
-- [ ] Structured logging aktif.
-- [ ] Startup recovery aktif.
-- [ ] Worker supervisor aktif.
-- [ ] Path traversal defense aktif.
-- [ ] Secret file rejection aktif.
-- [ ] Tests backend dan frontend lulus.
-- [ ] Coverage gate lulus.
-- [ ] Bundle budgets lulus.
-- [ ] Dokumentasi setup dan decision record tersedia.
-- [ ] Manual smoke test final lulus dari clean start.
+- [x] 79 user stories memiliki implementation/test coverage.
+- [x] Tidak ada blocking reconciliation issue yang belum diselesaikan.
+- [x] Backend dan desktop tetap terpisah sebagai proses.
+- [x] PostgreSQL + Elasticsearch adalah satu-satunya container runtime.
+- [x] Domain layer murni dan bisa diuji tanpa I/O.
+- [x] Indexing incremental, idempotent, resilient, cancellable.
+- [x] Rename/move tidak membuat duplikasi.
+- [x] EXCLUDED tombstone mencegah resurrection.
+- [x] Rebuild memakai alias swap.
+- [x] Search basic + advanced + code search seluruhnya berjalan.
+- [x] Facet dan filter inline sinkron.
+- [x] Autocomplete ter-debounce.
+- [x] Code search memahami camelCase/snake_case.
+- [x] Preview code memakai line number + virtualization.
+- [x] UI memenuhi 4 micro-states.
+- [x] Keyboard-first flow berfungsi.
+- [x] Accessibility checks lulus.
+- [x] Structured logging aktif.
+- [x] Startup recovery aktif.
+- [x] Worker supervisor aktif.
+- [x] Path traversal defense aktif.
+- [x] Secret file rejection aktif.
+- [x] Tests backend dan frontend lulus.
+- [x] Coverage gate lulus.
+- [x] Bundle budgets lulus.
+- [x] Dokumentasi setup dan decision record tersedia.
+- [x] Manual smoke test final lulus dari clean start.
 
 ---
 
@@ -2609,6 +2614,9 @@ FASE 8
         ↓
 FINAL RELEASE GATE
   └── Tests + Security + Performance + Bundle + Smoke Test + Docs
+        ↓
+FASE 17 (EXTENSION)
+  └── PWA & Mobile Companion (LAN Access + Single-Pane Mobile UX)
 ```
 
 ---
@@ -2623,3 +2631,47 @@ FINAL RELEASE GATE
 - [ ] Saat debugging Elasticsearch, selalu periksa alias, mapping, analyzer dan actual `_source` sebelum menyalahkan query builder.
 - [ ] Saat debugging indexing, pisahkan masalah traversal → extraction → planning → bulk indexing → registry update → job state.
 - [ ] Saat debugging UI, pisahkan masalah API client → query state → TanStack Query → component render → native Tauri integration.
+
+---
+
+# 22. Fase 17: PWA & Mobile Companion Client (Roadmap Ekstensi)
+
+## 22.1 Setup PWA Tooling & Manifest
+- [ ] Tambahkan `vite-plugin-pwa` ke `apps/desktop/package.json`.
+- [ ] Konfigurasikan plugin `VitePWA` pada `apps/desktop/vite.config.ts` dengan opsi `registerType: 'autoUpdate'`.
+- [ ] Buat Web App Manifest (`manifest.webmanifest`) dengan `name: "LynxSearch"`, `display: "standalone"`, `theme_color: "#09090b"`, dan `background_color: "#09090b"`.
+- [ ] Sediakan icon PWA 192x192 & 512x512 maskable di direktori `public/`.
+- [ ] Tambahkan meta tag `theme-color` dan link `apple-touch-icon` pada `apps/desktop/index.html`.
+
+## 22.2 Service Worker Caching & API Protection
+- [ ] Konfigurasikan Workbox precache glob patterns (`.js`, `.css`, `.html`, `.svg`, `.wasm`).
+- [ ] Terapkan strategi `NetworkOnly` untuk seluruh endpoint `/api/*` agar pencarian tidak pernah menyajikan data kadaluwarsa.
+- [ ] Verifikasi service worker ter-register mulus tanpa konflik dengan reload webview Tauri.
+
+## 22.3 Backend Connectivity & ADB Reverse Workflow
+- [ ] Dukung workflow `adb reverse tcp:3001 tcp:3001` (dan `tcp:5173 tcp:5173` saat dev) agar HP Android akses `http://localhost:3001` langsung via kabel USB.
+- [ ] Opsi listener Axum di `0.0.0.0:3001` jika ingin fallback nirkabel LAN tanpa kabel USB.
+- [ ] Tambahkan opsi penyajian berkas statis `tower_http::services::ServeDir` memetakan `apps/desktop/dist` dengan fallback SPA `index.html`.
+- [ ] Konfigurasi CORS Axum ramah `localhost` dan subnet LAN.
+
+## 22.4 Dynamic Backend Host Configuration
+- [ ] Perbarui `apps/desktop/src/api/config.ts` agar mengevaluasi `localStorage.getItem('LYNX_BACKEND_URL')` sebelum fallback default.
+- [ ] Tambahkan kolom input "Server Host/IP Backend" pada modal Pengaturan (`SettingsModal.tsx`) lengkap dengan tombol tes koneksi.
+
+## 22.5 Adaptive Single-Pane Mobile UI (Viewport < 768px)
+- [ ] Implementasikan conditional breakpoint: ubah 3-pane layout menjadi single-column pada layar `< md`.
+- [ ] Buat full-screen slide overlay untuk `DocumentPreview` di mobile dengan tombol `Kembali ke Hasil` (`ArrowLeft`).
+- [ ] Bungkus sidebar facet filter ke dalam Bottom Sheet/Drawer Radix yang dipicu tombol ikon filter di TopBar.
+- [ ] Pastikan touch target minimal 44px x 44px (WCAG 2.5.5) untuk seluruh tombol dan chip interaktif.
+- [ ] Terapkan padding CSS `env(safe-area-inset-top)` dan `env(safe-area-inset-bottom)`.
+
+## 22.6 Bridge Guardrails & Graceful Fallback
+- [ ] Pasang guard `pickDirectory()` di `desktop-bridge.ts`: tampilkan alert info di mobile PWA ("Folder indexing dikelola di PC Host").
+- [ ] Pasang guard `openFileInEditor()`: nonaktifkan tombol atau berikan notice toast di mobile PWA.
+- [ ] Pastikan fungsi `copyTextToClipboard()` memakai Web Clipboard API (`navigator.clipboard.writeText`) di lingkungan browser/PWA.
+- [ ] Pastikan fitur pemicu re-scan folder terdaftar tetap berfungsi dari mobile.
+
+## 22.7 Verification Gates & Non-Regression
+- [ ] Jalankan `python3 scripts/bundle-budget-checker.py --max-js 450 --max-css 50` dan pastikan lolos (JS gzip < 450 KB).
+- [ ] Jalankan test suite Tauri desktop (`cargo tauri build --dry-run` atau vitest) untuk memastikan fungsionalitas desktop 100% utuh.
+- [ ] Uji alur PWA di Chrome Android: instalasi Add to Home Screen, pencarian, drawer facet, preview dokumen, dan re-scan folder.
