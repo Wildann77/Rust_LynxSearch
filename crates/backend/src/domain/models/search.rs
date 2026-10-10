@@ -174,6 +174,30 @@ pub fn extract_line_number(content: &str, snippet: &str) -> Option<usize> {
     None
 }
 
+/// Memulihkan dan mempertahankan indentasi awal cuplikan kode jika terpotong oleh Elasticsearch,
+/// dengan mengacu pada baris mentah di `content` pada `line_number`.
+pub fn preserve_and_restore_indentation(
+    snippet: &str,
+    content: &str,
+    line_number: Option<usize>,
+) -> String {
+    let clean = snippet.trim_end();
+    if let Some(num) = line_number
+        && num > 0
+        && let Some(raw_line) = content.lines().nth(num - 1)
+    {
+        let raw_indent_len = raw_line.len() - raw_line.trim_start().len();
+        if raw_indent_len > 0 {
+            let raw_indent = &raw_line[..raw_indent_len];
+            let clean_indent_len = clean.len() - clean.trim_start().len();
+            if clean_indent_len < raw_indent_len {
+                return format!("{raw_indent}{}", clean.trim_start());
+            }
+        }
+    }
+    clean.to_string()
+}
+
 #[derive(Deserialize)]
 struct RawEsResponse {
     took: Option<u64>,
@@ -330,12 +354,16 @@ pub fn parse_search_execution_result(
                         if is_content_field && snippet.contains('\n') && snippet.contains("<em>") {
                             for line in snippet.lines() {
                                 if line.contains("<em>") {
-                                    let line_str = line.trim().to_string();
                                     let line_number = if !content.is_empty() {
-                                        extract_line_number(content, &line_str)
+                                        extract_line_number(content, line)
                                     } else {
                                         None
                                     };
+                                    let line_str = preserve_and_restore_indentation(
+                                        line,
+                                        content,
+                                        line_number,
+                                    );
                                     let hl = SearchHighlight {
                                         snippet: line_str,
                                         line_number,
@@ -351,8 +379,13 @@ pub fn parse_search_execution_result(
                             } else {
                                 None
                             };
+                            let snippet_str = if is_content_field {
+                                preserve_and_restore_indentation(snippet, content, line_number)
+                            } else {
+                                snippet.clone()
+                            };
                             let hl = SearchHighlight {
-                                snippet: snippet.clone(),
+                                snippet: snippet_str,
                                 line_number,
                             };
                             if !highlights.contains(&hl) {
@@ -574,6 +607,36 @@ mod tests {
             .find(|h| h.snippet.contains("ownership"))
             .expect("content highlight present");
         assert_eq!(content_hl.line_number, Some(3));
+        assert_eq!(content_hl.snippet, "    println!(\"<em>ownership</em>\");");
+    }
+
+    #[test]
+    fn test_preserve_and_restore_indentation_cases() {
+        let content = "fn test() {\n    let val = 42;\n\t\tlet tab_indented = true;\n}";
+
+        // Line 2: 4 spaces indent, snippet without indent
+        let snippet1 = "let <em>val</em> = 42;";
+        let restored1 = preserve_and_restore_indentation(snippet1, content, Some(2));
+        assert_eq!(restored1, "    let <em>val</em> = 42;");
+
+        // Line 2: 4 spaces indent, snippet already has 4 spaces indent
+        let snippet2 = "    let <em>val</em> = 42;";
+        let restored2 = preserve_and_restore_indentation(snippet2, content, Some(2));
+        assert_eq!(restored2, "    let <em>val</em> = 42;");
+
+        // Line 3: 2 tabs indent, snippet without indent
+        let snippet3 = "let <em>tab_indented</em> = true;";
+        let restored3 = preserve_and_restore_indentation(snippet3, content, Some(3));
+        assert_eq!(restored3, "\t\tlet <em>tab_indented</em> = true;");
+
+        // Line 1: no indent
+        let snippet_top = "fn <em>test</em>() {";
+        let restored_top = preserve_and_restore_indentation(snippet_top, content, Some(1));
+        assert_eq!(restored_top, "fn <em>test</em>() {");
+
+        // Invalid line number: retains snippet
+        let restored_none = preserve_and_restore_indentation(snippet1, content, None);
+        assert_eq!(restored_none, snippet1);
     }
 
     #[test]

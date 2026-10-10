@@ -15,7 +15,7 @@ pub use job::{IndexingJob, JobProgressUpdate, JobStatus, JobType};
 pub use registry::{DocumentStatus, RegistryEntry};
 pub use search::{
     FacetBucket, SearchExecutionResult, SearchFacets, SearchHighlight, SearchHit, SearchQuery,
-    extract_line_number, parse_search_execution_result,
+    extract_line_number, parse_search_execution_result, preserve_and_restore_indentation,
 };
 pub use settings::AppSettings;
 pub use types::{DocumentType, FilterKey, Language};
