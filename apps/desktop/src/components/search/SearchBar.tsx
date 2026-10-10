@@ -224,6 +224,7 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
           }}
           onKeyDown={handleKeyDown}
           placeholder="Search code, docs, tags... (Press / or ⌘K)"
+          role="combobox"
           aria-label="Pencarian dokumen, kode, dan tag"
           aria-autocomplete="list"
           aria-controls={isPopoverOpen ? 'search-autocomplete-listbox' : undefined}

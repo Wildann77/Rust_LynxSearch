@@ -24,6 +24,7 @@ export interface SearchState {
   pageSize: number;
   sort: SortOption;
   selectedDocId: string | null;
+  selectedLineNumber: number | null;
 
   setRawQuery: (rawQuery: string) => void;
   setFilter: (key: keyof ActiveFilters, value?: string | null) => void;
@@ -34,6 +35,7 @@ export interface SearchState {
   setPage: (page: number) => void;
   setPageSize: (pageSize: number) => void;
   setSelectedDocId: (selectedDocId: string | null) => void;
+  setSelectedLineNumber: (selectedLineNumber: number | null) => void;
   resetSearch: () => void;
 }
 
@@ -44,6 +46,7 @@ const initialState = {
   pageSize: 20,
   sort: 'relevance' as SortOption,
   selectedDocId: null,
+  selectedLineNumber: null,
 };
 
 export const useSearchStore = create<SearchState>((set) => ({
@@ -121,6 +124,7 @@ export const useSearchStore = create<SearchState>((set) => ({
   setPageSize: (pageSize) => set({ pageSize, page: 1 }),
 
   setSelectedDocId: (selectedDocId) => set({ selectedDocId }),
+  setSelectedLineNumber: (selectedLineNumber) => set({ selectedLineNumber }),
 
   resetSearch: () => set(initialState),
 }));

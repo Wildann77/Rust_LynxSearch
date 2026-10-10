@@ -9,7 +9,7 @@ import { cn } from '../../lib/utils';
 export interface ResultCardProps {
   item: SearchResultItem;
   isSelected?: boolean;
-  onSelect: (item: SearchResultItem) => void;
+  onSelect: (item: SearchResultItem, lineNumber?: number) => void;
   className?: string;
 }
 
@@ -100,7 +100,19 @@ export const ResultCard = React.forwardRef<HTMLDivElement, ResultCardProps>(
         {item.highlights && item.highlights.length > 0 ? (
           <div className="flex flex-col gap-1.5 bg-background/60 rounded p-2 border border-border/40">
             {item.highlights.slice(0, 3).map((h, idx) => (
-              <div key={idx} className="flex items-start gap-2 text-xs font-mono">
+              <div
+                key={idx}
+                className={cn(
+                  'flex items-start gap-2 text-xs font-mono rounded p-0.5 transition-colors',
+                  h.line_number != null && 'cursor-pointer hover:bg-primary/10',
+                )}
+                onClick={(e) => {
+                  if (h.line_number != null) {
+                    e.stopPropagation();
+                    onSelect(item, h.line_number);
+                  }
+                }}
+              >
                 {h.line_number != null ? (
                   <span
                     data-testid="result-line-number"

@@ -20,7 +20,7 @@ export interface ResultListProps {
   pageSize: number;
   onPageChange: (newPage: number) => void;
   selectedId: string | null;
-  onSelectItem: (item: SearchResultItem) => void;
+  onSelectItem: (item: SearchResultItem, lineNumber?: number) => void;
   isLoading?: boolean;
   isError?: boolean;
   errorMessage?: string;
