@@ -7,10 +7,6 @@ import { PreviewPane } from './PreviewPane';
 import { Resizer } from './Resizer';
 import { BottomStatusBar } from './BottomStatusBar';
 import { JobProgressIndicator } from '../jobs/JobProgressIndicator';
-import { FolderManagerModal } from '../modals/FolderManagerModal';
-import { SettingsModal } from '../modals/SettingsModal';
-import { StatsModal } from '../modals/StatsModal';
-import { OpenWithModal } from '../modals/OpenWithModal';
 import { ConnectionBanner } from '../common/ConnectionBanner';
 import { LynxToaster } from '../ui/LynxToaster';
 import { TooltipProvider } from '../ui/tooltip';
@@ -22,6 +18,20 @@ import { computeFullPath } from '../../lib/path';
 import { openFileInEditor, copyTextToClipboard } from '../../lib/desktop-bridge';
 import { cn } from '../../lib/utils';
 
+// Lazy load dialog modals to keep initial bundle size lean
+const FolderManagerModal = React.lazy(() =>
+  import('../modals/FolderManagerModal').then((m) => ({ default: m.FolderManagerModal }))
+);
+const SettingsModal = React.lazy(() =>
+  import('../modals/SettingsModal').then((m) => ({ default: m.SettingsModal }))
+);
+const StatsModal = React.lazy(() =>
+  import('../modals/StatsModal').then((m) => ({ default: m.StatsModal }))
+);
+const OpenWithModal = React.lazy(() =>
+  import('../modals/OpenWithModal').then((m) => ({ default: m.OpenWithModal }))
+);
+
 export interface WorkspaceShellProps {
   className?: string;
 }
@@ -30,6 +40,11 @@ export function WorkspaceShell({ className }: WorkspaceShellProps) {
   const searchInputRef = React.useRef<HTMLInputElement | null>(null);
   const previewCollapsed = useUIStore((state) => state.previewCollapsed);
   const selectedDocId = useSearchStore((state) => state.selectedDocId);
+
+  const folderModalOpen = useUIStore((state) => state.folderModalOpen);
+  const settingsModalOpen = useUIStore((state) => state.settingsModalOpen);
+  const statsModalOpen = useUIStore((state) => state.statsModalOpen);
+  const openWithModalOpen = useUIStore((state) => state.openWithModalOpen);
 
   const { data: activeDoc } = useDocumentDetailQuery(selectedDocId);
 
@@ -103,11 +118,13 @@ export function WorkspaceShell({ className }: WorkspaceShellProps) {
         {/* Bottom Status & Hotkeys Bar */}
         <BottomStatusBar />
 
-        {/* Dialog Overlays */}
-        <FolderManagerModal />
-        <SettingsModal />
-        <StatsModal />
-        <OpenWithModal />
+        {/* Dialog Overlays (Lazy Loaded on demand) */}
+        <React.Suspense fallback={null}>
+          {folderModalOpen ? <FolderManagerModal /> : null}
+          {settingsModalOpen ? <SettingsModal /> : null}
+          {statsModalOpen ? <StatsModal /> : null}
+          {openWithModalOpen ? <OpenWithModal /> : null}
+        </React.Suspense>
 
         {/* Global Notifications Toast */}
         <LynxToaster />

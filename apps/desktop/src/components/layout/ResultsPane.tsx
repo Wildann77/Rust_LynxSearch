@@ -32,6 +32,7 @@ export function ResultsPane({ className }: ResultsPaneProps) {
   const setPage = useSearchStore((state) => state.setPage);
   const setSort = useSearchStore((state) => state.setSort);
   const setSelectedDocId = useSearchStore((state) => state.setSelectedDocId);
+  const setSelectedLineNumber = useSearchStore((state) => state.setSelectedLineNumber);
   const resetSearch = useSearchStore((state) => state.resetSearch);
   const setPreviewCollapsed = useUIStore((state) => state.setPreviewCollapsed);
   const setFolderModalOpen = useUIStore((state) => state.setFolderModalOpen);
@@ -92,9 +93,10 @@ export function ResultsPane({ className }: ResultsPaneProps) {
 
   // Preserve selected document between rerenders:
   // If selectedDocId is in the new list, it remains selected.
-  // When a user selects an item, open preview pane if collapsed.
-  const handleSelectItem = (item: SearchResultItem) => {
+  // When a user selects an item, open preview pane if collapsed and set target line if provided.
+  const handleSelectItem = (item: SearchResultItem, lineNumber?: number) => {
     setSelectedDocId(item.id);
+    setSelectedLineNumber(lineNumber ?? null);
     setPreviewCollapsed(false);
   };
 

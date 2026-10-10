@@ -75,7 +75,7 @@ export function HealthDot({ className, showLabel = true, retry }: HealthDotProps
             data-testid="health-dot-indicator"
           />
           {showLabel && (
-            <span className="hidden xl:inline-block text-[11px] font-mono text-muted-foreground truncate max-w-[140px] transition-opacity duration-200">
+            <span className="hidden xl:inline-block text-[11px] font-mono text-muted-foreground truncate w-[72px] text-left shrink-0 transition-opacity duration-200">
               {labelText}
             </span>
           )}

@@ -38,7 +38,7 @@ export function TopBar({ searchInputRef, className }: TopBarProps) {
       )}
     >
       {/* Left Region: Logo & Sidebar Toggle */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 min-w-[180px] shrink-0">
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -68,12 +68,12 @@ export function TopBar({ searchInputRef, className }: TopBarProps) {
       </div>
 
       {/* Center Region: Global Search Input */}
-      <div className="flex flex-1 items-center justify-center max-w-xl mx-4">
+      <div className="flex flex-1 items-center justify-center max-w-xl mx-4 min-w-0">
         <SearchBar ref={searchInputRef} />
       </div>
 
       {/* Right Region: Health Dot, Folder, Stats, Settings, Preview Toggle */}
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center justify-end gap-1.5 min-w-[180px] shrink-0">
         {/* Backend Health Dot */}
         <HealthDot />
 

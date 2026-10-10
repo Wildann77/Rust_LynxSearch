@@ -215,14 +215,21 @@ export function JobProgressIndicator({
               </span>
             </div>
 
-            <div className="p-2 rounded-md bg-card/80 border border-border/60">
-              <span className="text-muted-foreground text-[10px] block uppercase font-mono">
-                Dilewati (Skip)
-              </span>
-              <span className="text-sm font-semibold font-mono text-muted-foreground">
-                {skipped.toLocaleString()}
-              </span>
-            </div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="p-2 rounded-md bg-card/80 border border-border/60 cursor-help transition-colors hover:border-border">
+                  <span className="text-muted-foreground text-[10px] block uppercase font-mono">
+                    Dilewati (Skip)
+                  </span>
+                  <span className="text-sm font-semibold font-mono text-muted-foreground">
+                    {skipped.toLocaleString()}
+                  </span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs max-w-xs">
+                Berkas rahasia (.env, kunci SSH, sertifikat/kunci privat), berkas biner, berkas yang melebihi batas ukuran, atau berkas yang belum berubah dilewati dari pengindeksan.
+              </TooltipContent>
+            </Tooltip>
 
             <div className="p-2 rounded-md bg-card/80 border border-border/60">
               <span className="text-muted-foreground text-[10px] block uppercase font-mono">
