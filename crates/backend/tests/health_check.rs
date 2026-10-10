@@ -96,3 +96,36 @@ async fn test_health_readiness_endpoint() {
         assert!(readiness.elasticsearch.is_some());
     }
 }
+
+#[tokio::test]
+async fn test_stats_endpoint_contract() {
+    let app = backend::create_router();
+
+    let request = Request::builder()
+        .uri("/api/stats")
+        .method("GET")
+        .body(Body::empty())
+        .expect("Failed to build request");
+
+    let response = app
+        .oneshot(request)
+        .await
+        .expect("Failed to execute request");
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body_bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("Failed to read response body");
+
+    let stats: backend::api::dtos::StatsResponseDto =
+        serde_json::from_slice(&body_bytes).expect("Failed to deserialize StatsResponseDto");
+
+    // Verify all required contract fields from Section 13.4
+    let _ = stats.total_documents;
+    let _ = stats.total_size_bytes;
+    let _ = stats.indexed_folders;
+    // HashMap distributions for type and language
+    let _ = &stats.types;
+    let _ = &stats.languages;
+}

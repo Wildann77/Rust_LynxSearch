@@ -1,20 +1,19 @@
 use backend::AppState;
 use backend::config::AppConfig;
 use std::error::Error;
-use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let _ = dotenvy::dotenv();
     let config = AppConfig::from_env().map_err(|e| format!("Config error: {e}"))?;
 
-    let env_filter =
-        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(&config.rust_log));
-
-    tracing_subscriber::registry()
-        .with(env_filter)
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    let _telemetry_guard = match backend::telemetry::init_telemetry(&config) {
+        Ok(guard) => Some(guard),
+        Err(e) => {
+            eprintln!("Warning: Failed to initialize persistent file logger: {e}");
+            None
+        }
+    };
 
     tracing::info!(
         "Starting LynxSearch backend on {}",
