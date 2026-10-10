@@ -1,6 +1,7 @@
 use crate::application::orchestrator::{IndexOrchestrator, JobTracker, WorkerCommand};
 use crate::error::AppError;
 use crate::state::Repositories;
+use futures::FutureExt;
 use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
@@ -136,8 +137,10 @@ pub async fn run_orchestrator_worker_loop(
             Some(res) = tasks.join_next(), if !tasks.is_empty() => {
                 if let Err(join_err) = res {
                     if join_err.is_panic() {
-                        tracing::error!("A spawned worker task panicked: {:?}", join_err);
-                        std::panic::resume_unwind(join_err.into_panic());
+                        tracing::error!(
+                            error = ?join_err,
+                            "A spawned worker task panicked at task boundary (recovered)"
+                        );
                     } else {
                         tracing::warn!("A spawned worker task was cancelled/aborted: {:?}", join_err);
                     }
@@ -154,7 +157,7 @@ pub async fn run_orchestrator_worker_loop(
                             WorkerCommand::CancelJob { job_id } => {
                                 tracing::debug!(job_id = %job_id, "Executing immediate cancellation in worker loop");
                                 if let Err(err) = orchestrator.dispatch(WorkerCommand::CancelJob { job_id }).await {
-                                    tracing::error!("Error dispatching cancel job command: {err}");
+                                    tracing::error!(job_id = %job_id, error = %err, "Error dispatching cancel job command");
                                 }
                             }
                             WorkerCommand::IndexFolder {
@@ -168,14 +171,14 @@ pub async fn run_orchestrator_worker_loop(
                                 tasks.spawn(async move {
                                     let _permit = tokio::select! {
                                         _ = token.cancelled() => {
-                                            tracing::info!(job_id = %job_id, "Shutdown cancelled before acquiring scan permit");
+                                            tracing::info!(job_id = %job_id, folder_id = %folder_id, "Shutdown cancelled before acquiring scan permit");
                                             return;
                                         }
                                         permit_res = sem.acquire_owned() => {
                                             match permit_res {
                                                 Ok(p) => p,
                                                 Err(_) => {
-                                                    tracing::warn!("Scan semaphore closed for job {job_id}");
+                                                    tracing::warn!(job_id = %job_id, folder_id = %folder_id, "Scan semaphore closed for job");
                                                     return;
                                                 }
                                             }
@@ -183,8 +186,34 @@ pub async fn run_orchestrator_worker_loop(
                                     };
 
                                     tracing::debug!(job_id = %job_id, folder_id = %folder_id, "Worker task starting IndexFolder execution");
-                                    if let Err(err) = orch.dispatch(WorkerCommand::IndexFolder { job_id, folder_id, rescan }).await {
-                                        tracing::error!("Error dispatching IndexFolder command: {err}");
+                                    let orch_clone = orch.clone();
+                                    let dispatch_res = std::panic::AssertUnwindSafe(async move {
+                                        orch_clone.dispatch(WorkerCommand::IndexFolder { job_id, folder_id, rescan }).await
+                                    }).catch_unwind().await;
+
+                                    match dispatch_res {
+                                        Ok(Ok(())) => {}
+                                        Ok(Err(err)) => {
+                                            tracing::error!(job_id = %job_id, folder_id = %folder_id, error = %err, "Error dispatching IndexFolder command");
+                                        }
+                                        Err(panic_payload) => {
+                                            let panic_msg = if let Some(s) = panic_payload.downcast_ref::<&str>() {
+                                                s.to_string()
+                                            } else if let Some(s) = panic_payload.downcast_ref::<String>() {
+                                                s.clone()
+                                            } else {
+                                                "Unknown panic occurred in worker task".to_string()
+                                            };
+
+                                            tracing::error!(
+                                                job_id = %job_id,
+                                                folder_id = %folder_id,
+                                                panic = %panic_msg,
+                                                "Worker task panicked during IndexFolder; executing panic recovery"
+                                            );
+
+                                            orch.recover_worker_panic(job_id, Some(folder_id), &panic_msg).await;
+                                        }
                                     }
                                 });
                             }
@@ -205,7 +234,7 @@ pub async fn run_orchestrator_worker_loop(
                                             match permits_res {
                                                 Ok(p) => p,
                                                 Err(_) => {
-                                                    tracing::warn!("Scan semaphore closed for rebuild job {job_id}");
+                                                    tracing::warn!(job_id = %job_id, "Scan semaphore closed for rebuild job");
                                                     return;
                                                 }
                                             }
@@ -213,8 +242,33 @@ pub async fn run_orchestrator_worker_loop(
                                     };
 
                                     tracing::debug!(job_id = %job_id, "Worker task starting RebuildIndex execution (exclusive)");
-                                    if let Err(err) = orch.dispatch(WorkerCommand::RebuildIndex { job_id, target_index }).await {
-                                        tracing::error!("Error dispatching RebuildIndex command: {err}");
+                                    let orch_clone = orch.clone();
+                                    let dispatch_res = std::panic::AssertUnwindSafe(async move {
+                                        orch_clone.dispatch(WorkerCommand::RebuildIndex { job_id, target_index }).await
+                                    }).catch_unwind().await;
+
+                                    match dispatch_res {
+                                        Ok(Ok(())) => {}
+                                        Ok(Err(err)) => {
+                                            tracing::error!(job_id = %job_id, error = %err, "Error dispatching RebuildIndex command");
+                                        }
+                                        Err(panic_payload) => {
+                                            let panic_msg = if let Some(s) = panic_payload.downcast_ref::<&str>() {
+                                                s.to_string()
+                                            } else if let Some(s) = panic_payload.downcast_ref::<String>() {
+                                                s.clone()
+                                            } else {
+                                                "Unknown panic occurred in worker task".to_string()
+                                            };
+
+                                            tracing::error!(
+                                                job_id = %job_id,
+                                                panic = %panic_msg,
+                                                "Worker task panicked during RebuildIndex; executing panic recovery"
+                                            );
+
+                                            orch.recover_worker_panic(job_id, None, &panic_msg).await;
+                                        }
                                     }
                                 });
                             }
@@ -231,14 +285,18 @@ pub async fn run_orchestrator_worker_loop(
 
     // Await any remaining background tasks before finishing the loop
     while let Some(res) = tasks.join_next().await {
-        if let Err(join_err) = res
-            && join_err.is_panic()
-        {
-            tracing::error!(
-                "Worker background task panicked during shutdown drain: {:?}",
-                join_err
-            );
-            std::panic::resume_unwind(join_err.into_panic());
+        if let Err(join_err) = res {
+            if join_err.is_panic() {
+                tracing::error!(
+                    error = ?join_err,
+                    "Worker background task panicked during shutdown drain (recovered)"
+                );
+            } else {
+                tracing::warn!(
+                    "Worker background task cancelled during shutdown drain: {:?}",
+                    join_err
+                );
+            }
         }
     }
 }

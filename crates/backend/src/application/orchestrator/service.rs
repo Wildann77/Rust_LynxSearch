@@ -326,6 +326,58 @@ impl IndexOrchestrator {
         Ok((job_id, target_index))
     }
 
+    /// Recovers state and releases locks when an individual worker task encounters an uncaught panic.
+    pub async fn recover_worker_panic(
+        &self,
+        job_id: JobId,
+        folder_id: Option<FolderId>,
+        panic_msg: &str,
+    ) {
+        let error_summary = format!("Worker panicked: {panic_msg}");
+
+        // 1. Update in-memory job tracker
+        self.job_tracker.update_progress(
+            &job_id,
+            JobProgressUpdate {
+                status: Some(JobStatus::Failed),
+                error_summary: Some(error_summary.clone()),
+                ..Default::default()
+            },
+        );
+
+        // 2. Persist failed state to database
+        let _ = self
+            .repositories
+            .job
+            .update_progress(
+                &job_id,
+                &JobProgressUpdate {
+                    status: Some(JobStatus::Failed),
+                    error_summary: Some(error_summary.clone()),
+                    ..Default::default()
+                },
+            )
+            .await;
+
+        // 3. Release folder lock and reset DB folder status if applicable
+        if let Some(fid) = folder_id {
+            self.job_tracker.release_folder_lock(&fid);
+            let _ = self
+                .repositories
+                .folder
+                .update_status(&fid, FolderStatus::Idle)
+                .await;
+        } else {
+            self.job_tracker.release_rebuild_lock();
+        }
+
+        tracing::info!(
+            job_id = %job_id,
+            folder_id = ?folder_id,
+            "Worker panic recovery executed successfully"
+        );
+    }
+
     /// Dispatches a single `WorkerCommand` received from the background queue.
     pub async fn dispatch(&self, command: WorkerCommand) -> Result<(), AppError> {
         match command {
@@ -449,7 +501,11 @@ impl IndexOrchestrator {
                 .folder
                 .update_status(&folder_id, FolderStatus::Idle)
                 .await;
-            tracing::info!(job_id = %job_id, "Folder indexing job was cancelled during execution");
+            tracing::info!(
+                job_id = %job_id,
+                folder_id = %folder_id,
+                "Folder indexing job was cancelled during execution"
+            );
             self.job_tracker.release_folder_lock(&folder_id);
             drop(_fallback_guard);
             return Ok(());
@@ -493,9 +549,17 @@ impl IndexOrchestrator {
                     })
                     .unwrap_or_else(|| JobSummary::new(0, 0, 0, 0, None));
                 self.event_dispatcher
-                    .dispatch(&DomainEvent::job_completed(job_id, summary));
+                    .dispatch(&DomainEvent::job_completed(job_id, summary.clone()));
 
-                tracing::info!(job_id = %job_id, "Folder indexing job completed successfully");
+                tracing::info!(
+                    job_id = %job_id,
+                    folder_id = %folder_id,
+                    files_total = summary.files_total,
+                    files_indexed = summary.files_indexed,
+                    files_skipped = summary.files_skipped,
+                    files_failed = summary.files_failed,
+                    "Folder indexing job completed successfully"
+                );
             }
             Err(err) => {
                 let err_str = err.to_string();
@@ -524,7 +588,12 @@ impl IndexOrchestrator {
                     .folder
                     .update_status(&folder_id, FolderStatus::Idle)
                     .await;
-                tracing::error!(job_id = %job_id, error = %err, "Folder indexing job failed");
+                tracing::error!(
+                    job_id = %job_id,
+                    folder_id = %folder_id,
+                    error = %err,
+                    "Folder indexing job failed"
+                );
             }
         }
 
