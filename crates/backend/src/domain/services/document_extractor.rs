@@ -761,4 +761,112 @@ This is the document content explaining borrow checker.
         assert_eq!(indexed.modified_at, now);
         assert_eq!(indexed.content_hash, Some("mock_hash".to_string()));
     }
+
+    #[test]
+    fn test_phase0_canonical_mappings_and_secrets() {
+        let extractor = DocumentExtractor::new();
+        let opts = ExtractOptions::default();
+
+        // 1. Verify code mappings
+        let code_exts = [
+            ("rs", Language::Rust),
+            ("ts", Language::Typescript),
+            ("tsx", Language::Typescript),
+            ("js", Language::Javascript),
+            ("jsx", Language::Javascript),
+            ("py", Language::Python),
+            ("go", Language::Go),
+            ("java", Language::Java),
+            ("kt", Language::Kotlin),
+            ("c", Language::C),
+            ("cpp", Language::Cpp),
+            ("h", Language::C),
+            ("cs", Language::Csharp),
+            ("rb", Language::Ruby),
+            ("php", Language::Php),
+            ("swift", Language::Swift),
+            ("sh", Language::Shell),
+            ("sql", Language::Sql),
+            ("html", Language::Html),
+            ("css", Language::Css),
+            ("scss", Language::Scss),
+            ("vue", Language::Vue),
+            ("svelte", Language::Svelte),
+            ("lua", Language::Lua),
+        ];
+
+        for (ext, expected_lang) in code_exts {
+            let filename = format!("src/file.{ext}");
+            let res = extractor.extract(Path::new(&filename), b"content", 7, None, &opts);
+            match res {
+                ExtractionResult::Extracted(doc) => {
+                    assert_eq!(
+                        doc.doc_type,
+                        DocumentType::Code,
+                        "failed doc_type for {ext}"
+                    );
+                    assert_eq!(
+                        doc.language,
+                        Some(expected_lang),
+                        "failed language for {ext}"
+                    );
+                }
+                other => panic!("expected extracted for {ext}, got {other:?}"),
+            }
+        }
+
+        // 2. Verify config mappings
+        let config_exts = [
+            ("json", Language::Json),
+            ("toml", Language::Toml),
+            ("yaml", Language::Yaml),
+            ("yml", Language::Yaml),
+            ("ini", Language::Ini),
+        ];
+
+        for (ext, expected_lang) in config_exts {
+            let filename = format!("config/settings.{ext}");
+            let res = extractor.extract(Path::new(&filename), b"key = value", 11, None, &opts);
+            match res {
+                ExtractionResult::Extracted(doc) => {
+                    assert_eq!(
+                        doc.doc_type,
+                        DocumentType::Config,
+                        "failed doc_type for {ext}"
+                    );
+                    assert_eq!(
+                        doc.language,
+                        Some(expected_lang),
+                        "failed language for {ext}"
+                    );
+                }
+                other => panic!("expected extracted for {ext}, got {other:?}"),
+            }
+        }
+
+        // 3. Verify secrets rejection
+        let secret_files = [
+            ".env",
+            ".env.local",
+            ".env.production",
+            "id_rsa",
+            "id_rsa.pub",
+            "id_ed25519",
+            "server.pem",
+            "cert.key",
+            "keystore.p12",
+            "keys.pfx",
+            "secret.json",
+            "credentials.yaml",
+            "api_token.txt",
+        ];
+
+        for secret in secret_files {
+            let res = extractor.extract(Path::new(secret), b"super_secret_value", 18, None, &opts);
+            assert!(
+                matches!(res, ExtractionResult::Skipped(SkipReason::SecretFile(_))),
+                "secret {secret} was not skipped!"
+            );
+        }
+    }
 }
