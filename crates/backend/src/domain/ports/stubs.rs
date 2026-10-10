@@ -858,6 +858,7 @@ impl SearchRepository for InMemorySearchRepository {
         if let Some(sort_arr) = sort_val.and_then(|s| s.as_array()) {
             let mut sort_by_size = false;
             let mut sort_by_date = false;
+            let mut sort_by_name = false;
             let mut is_desc = true;
 
             for item in sort_arr {
@@ -869,6 +870,11 @@ impl SearchRepository for InMemorySearchRepository {
                 if let Some(date_obj) = item.get("modified_at") {
                     sort_by_date = true;
                     is_desc = date_obj.get("order").and_then(|o| o.as_str()) != Some("asc");
+                    break;
+                }
+                if let Some(name_obj) = item.get("relative_path") {
+                    sort_by_name = true;
+                    is_desc = name_obj.get("order").and_then(|o| o.as_str()) != Some("asc");
                     break;
                 }
             }
@@ -887,6 +893,14 @@ impl SearchRepository for InMemorySearchRepository {
                         b.1.modified_at.cmp(&a.1.modified_at)
                     } else {
                         a.1.modified_at.cmp(&b.1.modified_at)
+                    }
+                });
+            } else if sort_by_name {
+                scored_docs.sort_by(|a, b| {
+                    if is_desc {
+                        b.1.relative_path.cmp(&a.1.relative_path)
+                    } else {
+                        a.1.relative_path.cmp(&b.1.relative_path)
                     }
                 });
             } else {
