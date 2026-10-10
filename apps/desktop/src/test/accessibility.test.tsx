@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import * as fs from 'fs';
 import * as path from 'path';
+import { axe } from 'vitest-axe';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Slider } from '../components/ui/slider';
@@ -50,15 +51,27 @@ describe('Accessibility Requirements (Task 7.22)', () => {
     expect(sliderThumb.className).toContain('focus-visible:ring-2');
   });
 
-  it('renders SearchBar with accessible aria-label on input', () => {
+  it('verifies SearchBar has no accessibility violations via vitest-axe', async () => {
     const queryClient = new QueryClient();
-    render(
+    const { container } = render(
       <QueryClientProvider client={queryClient}>
         <SearchBar />
       </QueryClientProvider>,
     );
 
-    const input = screen.getByLabelText('Pencarian dokumen, kode, dan tag');
-    expect(input).toBeDefined();
+    const results = await axe(container);
+    expect(results.violations).toEqual([]);
+  });
+
+  it('ensures icon-only buttons have accessible aria-labels', () => {
+    render(
+      <Button size="icon" aria-label="Tutup jendela">
+        <span aria-hidden="true">✕</span>
+      </Button>,
+    );
+    const btn = screen.getByRole('button', { name: 'Tutup jendela' });
+    expect(btn).toBeDefined();
+    expect(btn.getAttribute('aria-label')).toBe('Tutup jendela');
   });
 });
+

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, within, act } from '@testing-library/react';
+import { render, screen, fireEvent, within, act, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { WorkspaceShell } from '../components/layout/WorkspaceShell';
 import { useUIStore } from '../stores/uiStore';
@@ -207,7 +207,7 @@ describe('WorkspaceShell (3-pane layout)', () => {
     expect(within(footer).getByText('j/k')).toBeDefined();
   });
 
-  it('opens and closes Folder Manager modal dialog', () => {
+  it('opens and closes Folder Manager modal dialog', async () => {
     renderWorkspace();
 
     expect(screen.queryByRole('dialog')).toBeNull();
@@ -215,15 +215,18 @@ describe('WorkspaceShell (3-pane layout)', () => {
     const folderBtn = screen.getByLabelText('Open Folder Manager');
     fireEvent.click(folderBtn);
 
-    expect(screen.getByRole('dialog')).toBeDefined();
-    expect(screen.getByText('Folder Manager')).toBeDefined();
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toBeDefined();
+    expect(await screen.findByText('Folder Manager')).toBeDefined();
 
     // Escape closes modal
     fireEvent.keyDown(window, { key: 'Escape' });
-    expect(screen.queryByRole('dialog')).toBeNull();
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
   });
 
-  it('opens and closes Settings modal dialog', () => {
+  it('opens and closes Settings modal dialog', async () => {
     renderWorkspace();
 
     expect(screen.queryByRole('dialog')).toBeNull();
@@ -231,11 +234,14 @@ describe('WorkspaceShell (3-pane layout)', () => {
     const settingsBtn = screen.getByLabelText('Open Settings');
     fireEvent.click(settingsBtn);
 
-    expect(screen.getByRole('dialog')).toBeDefined();
-    expect(screen.getByText('Search Settings')).toBeDefined();
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toBeDefined();
+    expect(await screen.findByText('Search Settings')).toBeDefined();
 
     // Escape closes modal
     fireEvent.keyDown(window, { key: 'Escape' });
-    expect(screen.queryByRole('dialog')).toBeNull();
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
   });
 });
