@@ -55,6 +55,12 @@ pub async fn ensure_structured_errors(req: Request, next: Next) -> Response {
         details: None,
     };
 
+    tracing::warn!(
+        error_code = code.as_str(),
+        status = status.as_u16(),
+        "HTTP error response intercepted and structured"
+    );
+
     let mut response = (status, Json(body)).into_response();
     for (k, v) in res.headers() {
         if k != header::CONTENT_TYPE && k != header::CONTENT_LENGTH {

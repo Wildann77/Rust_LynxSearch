@@ -29,6 +29,7 @@ pub fn create_trace_layer() -> TraceLayer<
                 method = %request.method(),
                 uri = %request.uri().path(),
                 status_code = tracing::field::Empty,
+                took_ms = tracing::field::Empty,
                 latency_ms = tracing::field::Empty,
             )
         })
@@ -39,9 +40,11 @@ pub fn create_trace_layer() -> TraceLayer<
             let ms = latency.as_millis() as u64;
             let status = response.status().as_u16();
             span.record("status_code", status);
+            span.record("took_ms", ms);
             span.record("latency_ms", ms);
             tracing::info!(
                 status = status,
+                took_ms = ms,
                 latency_ms = ms,
                 "Finished processing HTTP request"
             );
@@ -49,8 +52,14 @@ pub fn create_trace_layer() -> TraceLayer<
         .on_failure(
             |error: ServerErrorsFailureClass, latency: Duration, span: &Span| {
                 let ms = latency.as_millis() as u64;
+                span.record("took_ms", ms);
                 span.record("latency_ms", ms);
-                tracing::error!(latency_ms = ms, error = %error, "HTTP request failed");
+                tracing::error!(
+                    took_ms = ms,
+                    latency_ms = ms,
+                    error = %error,
+                    "HTTP request failed"
+                );
             },
         )
 }
