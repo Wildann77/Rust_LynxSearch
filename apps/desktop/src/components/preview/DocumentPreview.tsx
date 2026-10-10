@@ -24,16 +24,20 @@ import { Skeleton } from '../ui/skeleton';
 import { formatBytes } from '../../lib/format';
 import { computeFullPath } from '../../lib/path';
 import { openFileInEditor, copyTextToClipboard, revealFileInFolder } from '../../lib/desktop-bridge';
+import { VirtualizedCodeViewer } from './VirtualizedCodeViewer';
 import { cn } from '../../lib/utils';
 
 export interface DocumentPreviewProps {
   documentId: string;
+  targetLine?: number | null;
   onClose?: () => void;
   className?: string;
 }
 
-export function DocumentPreview({ documentId, onClose, className }: DocumentPreviewProps) {
+export function DocumentPreview({ documentId, targetLine, onClose, className }: DocumentPreviewProps) {
   const rawQuery = useSearchStore((state) => state.rawQuery);
+  const storeTargetLine = useSearchStore((state) => state.selectedLineNumber);
+  const activeTargetLine = targetLine !== undefined ? targetLine : storeTargetLine;
 
   const { data: doc, isLoading, isError, error, refetch } = useDocumentDetailQuery(documentId);
 
@@ -128,36 +132,6 @@ export function DocumentPreview({ documentId, onClose, className }: DocumentPrev
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleCopyPath, handleOpenEditor]);
-
-  // Helper renderer for highlighted code lines
-  const renderHighlightedLine = React.useCallback(
-    (line: string) => {
-      if (searchTerms.length === 0 || !line) {
-        return line;
-      }
-
-      const escapedTerms = searchTerms
-        .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-        .join('|');
-      const regex = new RegExp(`(${escapedTerms})`, 'gi');
-      const parts = line.split(regex);
-
-      return parts.map((part, idx) => {
-        if (searchTerms.includes(part.toLowerCase())) {
-          return (
-            <mark
-              key={idx}
-              className="bg-amber-500/25 text-amber-200 font-medium rounded-xs px-0.5"
-            >
-              {part}
-            </mark>
-          );
-        }
-        return part;
-      });
-    },
-    [searchTerms],
-  );
 
   // Micro-state 1: Loading
   if (isLoading) {
@@ -445,26 +419,12 @@ export function DocumentPreview({ documentId, onClose, className }: DocumentPrev
             </ReactMarkdown>
           </article>
         ) : (
-          /* Plain / Source Code Viewer with Line Numbers (Phase 7.11 placeholder) */
-          <div className="flex font-mono text-xs leading-relaxed min-h-full select-text bg-black/40">
-            {/* Gutter: Line Numbers */}
-            <div className="w-12 shrink-0 py-3 pr-2.5 text-right text-neutral-500 border-r border-border/50 bg-neutral-950/40 select-none font-mono">
-              {lines.map((_, i) => (
-                <div key={i} className="h-5 leading-5 text-[11px]">
-                  {i + 1}
-                </div>
-              ))}
-            </div>
-
-            {/* Code Content */}
-            <div className="flex-1 py-3 pl-3 overflow-x-auto">
-              {lines.map((line, i) => (
-                <div key={i} className="h-5 leading-5 whitespace-pre font-mono text-[11px] text-neutral-200">
-                  {renderHighlightedLine(line)}
-                </div>
-              ))}
-            </div>
-          </div>
+          <VirtualizedCodeViewer
+            code={doc.content}
+            language={doc.language}
+            highlightLine={activeTargetLine}
+            searchTerms={searchTerms}
+          />
         )}
       </div>
     </div>

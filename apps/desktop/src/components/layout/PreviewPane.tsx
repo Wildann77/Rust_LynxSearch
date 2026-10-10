@@ -1,10 +1,52 @@
+import * as React from 'react';
 import { FileText, X, ChevronRight } from 'lucide-react';
 import { useUIStore } from '../../stores/uiStore';
 import { useSearchStore } from '../../stores/searchStore';
-import { DocumentPreview } from '../preview/DocumentPreview';
 import { Button } from '../ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
+import { Skeleton } from '../ui/skeleton';
 import { cn } from '../../lib/utils';
+
+// Lazy load heavy DocumentPreview (and its Shiki / markdown dependencies)
+const DocumentPreview = React.lazy(() =>
+  import('../preview/DocumentPreview').then((m) => ({ default: m.DocumentPreview }))
+);
+
+function PreviewSkeletonFallback({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="flex flex-col h-full bg-card/20 select-none animate-pulse" data-testid="preview-lazy-skeleton">
+      <div className="flex h-12 items-center justify-between border-b border-border px-3 shrink-0">
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-4 w-4 rounded" />
+          <Skeleton className="h-4 w-32" />
+        </div>
+        <div className="flex items-center gap-1">
+          <Skeleton className="h-6 w-6 rounded" />
+          <Skeleton className="h-6 w-6 rounded" />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="h-6 w-6 text-muted-foreground hover:text-foreground cursor-pointer"
+            aria-label="Close preview panel (])"
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </div>
+      <div className="p-4 space-y-3 flex-1 overflow-hidden">
+        <Skeleton className="h-6 w-3/4" />
+        <Skeleton className="h-4 w-1/2" />
+        <div className="pt-4 space-y-2">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-5/6" />
+          <Skeleton className="h-4 w-4/6" />
+          <Skeleton className="h-4 w-full" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export interface PreviewPaneProps {
   className?: string;
@@ -13,6 +55,7 @@ export interface PreviewPaneProps {
 export function PreviewPane({ className }: PreviewPaneProps) {
   const { previewCollapsed, previewWidth, togglePreview } = useUIStore();
   const selectedDocId = useSearchStore((state) => state.selectedDocId);
+  const selectedLineNumber = useSearchStore((state) => state.selectedLineNumber);
 
   if (previewCollapsed) {
     return null;
@@ -28,7 +71,13 @@ export function PreviewPane({ className }: PreviewPaneProps) {
       aria-label="Document Preview Panel"
     >
       {selectedDocId ? (
-        <DocumentPreview documentId={selectedDocId} onClose={togglePreview} />
+        <React.Suspense fallback={<PreviewSkeletonFallback onClose={togglePreview} />}>
+          <DocumentPreview
+            documentId={selectedDocId}
+            targetLine={selectedLineNumber}
+            onClose={togglePreview}
+          />
+        </React.Suspense>
       ) : (
         <>
           {/* Preview Header (Empty State) */}
